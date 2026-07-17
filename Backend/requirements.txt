@@ -10,3 +10,5 @@ tabulate
 # --- testing ---
 pytest
 httpx
+# --- RAG ---
+langchain-text-splitters
