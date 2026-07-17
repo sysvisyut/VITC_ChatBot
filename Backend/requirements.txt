@@ -7,3 +7,6 @@ PyMuPDF
 camelot-py[cv]
 pandas
 tabulate
+# --- testing ---
+pytest
+httpx
