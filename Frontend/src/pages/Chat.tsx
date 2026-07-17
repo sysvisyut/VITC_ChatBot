@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentSessionId] = useState(() => `session_${Date.now()}`);
+  const [currentSessionId, setCurrentSessionId] = useState(() => `session_${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -47,17 +47,21 @@ export default function Chat() {
         sources: response.sources,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Save to localStorage
-      const session: ChatSession = {
-        id: currentSessionId,
-        title: messages.length === 0 ? content.slice(0, 50) : `Chat ${currentSessionId}`,
-        messages: [...messages, userMessage, assistantMessage],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      chatStorage.saveSession(session);
+      setMessages((prev) => {
+        const updatedMessages = [...prev, assistantMessage];
+        
+        // Save to localStorage
+        const session: ChatSession = {
+          id: currentSessionId,
+          title: updatedMessages.length <= 2 ? content.slice(0, 50) : `Chat ${currentSessionId}`,
+          messages: updatedMessages,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        chatStorage.saveSession(session);
+        
+        return updatedMessages;
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -77,7 +81,7 @@ export default function Chat() {
       if (!confirmNew) return;
     }
     setMessages([]);
-    window.location.reload();
+    setCurrentSessionId(`session_${Date.now()}`);
   };
 
   return (
