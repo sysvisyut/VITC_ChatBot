@@ -35,8 +35,7 @@ This starts both backend and frontend automatically!
 ```bash
 cd Backend
 source venv/bin/activate
-cd app
-uvicorn main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8000
 ```
 
 **Terminal 2 - Frontend:**

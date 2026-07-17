@@ -69,10 +69,10 @@ if ! pip list | grep -q fastapi; then
 fi
 
 # Start backend server
-cd app
-uvicorn main:app --reload --host 0.0.0.0 --port 8000 > ../../backend.log 2>&1 &
+# Start backend server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
 BACKEND_PID=$!
-cd ../..
+cd ..
 
 echo -e "${GREEN}✓ Backend starting on http://localhost:8000 (PID: $BACKEND_PID)${NC}"
 

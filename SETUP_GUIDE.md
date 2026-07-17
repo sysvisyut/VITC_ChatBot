@@ -52,8 +52,7 @@ GEMINI_MODEL=gemini-1.5-flash
 
 ### 5. Run the Backend Server
 ```bash
-cd app
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Expected Output:**
@@ -146,10 +145,9 @@ echo -e "${BLUE}🚀 Starting VIT Chennai AI Assistant${NC}\n"
 echo -e "${GREEN}📡 Starting Backend Server...${NC}"
 cd Backend
 source venv/bin/activate
-cd app
-uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
-cd ../..
+cd ..
 
 # Wait for backend to start
 sleep 3

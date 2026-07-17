@@ -1,27 +1,36 @@
+import sys
+from pathlib import Path
+
+# Add parent directory to path so WeaviateGeminiInterface can be imported
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from dotenv import load_dotenv
 
+# Always load .env from the Backend directory (parent of this file's directory)
+_ENV_PATH = Path(__file__).parent.parent / ".env"
+
 # Import functions from our modules
-from .pdf_processor import process_pdfs_in_directory
-from .weaviate_handler import (
+from WeaviateGeminiInterface.pdf_processor import process_pdfs_in_directory
+from WeaviateGeminiInterface.weaviate_handler import (
     connect_to_weaviate, 
     get_or_create_collection, 
     ingest_data,
     retrieve_chunks
 )
-from .gemini_handler import configure_gemini, generate_answer
+from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer
 
 
 def query(user_query : str):
     """
     Main function to orchestrate the PDF ingestion and RAG workflow.
     """
-    load_dotenv()
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
     # --- Configuration ---
-    # Set to True to delete the existing Weaviate collection and re-ingest all PDFs.
-    # Set to False to use the existing data and just ask questions.
+    # ⚠️  IMPORTANT: Set to True ONLY for first-time setup or when you add new PDFs.
+    # After a successful ingestion, change this to False so PDFs aren't re-uploaded on every restart.
     PERFORM_INGESTION = False
-    PDF_DIRECTORY = r"/Users/sharvajvidyutgmail.com/projects/VITC_ChatBot_frontend/Backend/data" # The folder containing your PDF files
+    PDF_DIRECTORY = str(Path(__file__).parent.parent / "data")  # Points to Backend/data/
     
     # --- API and DB Setup ---
     if not configure_gemini():
@@ -70,4 +79,10 @@ def query(user_query : str):
             client.close()
             print("\nConnection to Weaviate closed.")
 
+
+if __name__ == "__main__":
+    # Run the RAG workflow with a sample query
+    result = query("What is VITC?")
+    if result:
+        print(f"\n✅ Final Answer: {result}")
 

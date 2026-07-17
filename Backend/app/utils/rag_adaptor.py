@@ -1,11 +1,7 @@
 # this is an adaptor to bridge the gemini RAG app with the backend
 from typing import Any, Dict, List, Optional
 
-try:
-    from WeaviateGeminiInterface.RAG_CORE import query as core_query  # def query(query: str, top_k: int, collections: Optional[List[str]]) -> dict
-except Exception:
-    print("Failed to import query function")
-    
+from WeaviateGeminiInterface.RAG_CORE import query as core_query
 
 def query_rag(query: str):
     """
