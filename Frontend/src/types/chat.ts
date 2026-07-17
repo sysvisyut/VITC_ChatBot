@@ -1,6 +1,6 @@
 export interface Source {
-  text_chunk: string;
-  source_file: string;
+  page_number: number | string; // Gemini may return either; normalise on display
+  document_name: string;
 }
 
 export interface Message {

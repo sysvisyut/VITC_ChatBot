@@ -3,11 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-interface Source {
-  text_chunk: string;
-  source_file: string;
-}
+import { Source } from "@/types/chat";
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
@@ -38,11 +34,11 @@ export const MessageBubble = ({ role, content, timestamp, sources }: MessageBubb
     }).format(date);
   };
 
+  // Deduplicate by document_name — the unique key in the actual API response.
   const uniqueSources = sources
-    ? Array.from(new Set(sources.map((s) => s.source_file))).map((file) => ({
-        source_file: file,
-        text_chunk: sources.find((s) => s.source_file === file)?.text_chunk || "",
-      }))
+    ? Array.from(new Set(sources.map((s) => s.document_name))).map((name) => (
+        sources.find((s) => s.document_name === name)!
+      ))
     : [];
 
   if (role === "user") {
@@ -146,10 +142,10 @@ export const MessageBubble = ({ role, content, timestamp, sources }: MessageBubb
                       className="bg-muted/50 rounded-lg px-3 py-2 text-xs"
                     >
                       <p className="font-medium text-foreground mb-1">
-                        📄 {source.source_file}
+                        📄 {source.document_name}
                       </p>
-                      <p className="text-muted-foreground line-clamp-2">
-                        {source.text_chunk}
+                      <p className="text-muted-foreground">
+                        Page {source.page_number}
                       </p>
                     </div>
                   ))}
