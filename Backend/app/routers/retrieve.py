@@ -10,7 +10,7 @@ router = APIRouter(
 
 
 @router.post("/", response_model=schemas.RetrieveResponse)
-async def retrieve(req: schemas.RetrieveRequest):
+def retrieve(req: schemas.RetrieveRequest):
     try:
         result = query_rag(req.query)
         return schemas.RetrieveResponse(

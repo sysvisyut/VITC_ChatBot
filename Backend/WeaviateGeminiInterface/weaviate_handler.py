@@ -8,20 +8,30 @@ from weaviate.classes.config import Configure, Property, DataType
 from weaviate.exceptions import WeaviateQueryError, WeaviateConnectionError
 from weaviate.classes.query import Filter
 
+import threading
+import os
+
+# Fix HuggingFace tokenizers crashing in FastAPI threadpools
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # ---------------------------------------------------------------------------
 # Cross-encoder singleton — loaded once, reused across all queries
 # ---------------------------------------------------------------------------
 
 _cross_encoder = None
+_encoder_lock = threading.Lock()
+_inference_lock = threading.Lock()
 
 def _get_cross_encoder():
     """Lazy-load the cross-encoder model (downloads ~80 MB on first call)."""
     global _cross_encoder
     if _cross_encoder is None:
-        from sentence_transformers import CrossEncoder
-        print("Loading cross-encoder model (first call only)...")
-        _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-        print("✅ Cross-encoder ready.")
+        with _encoder_lock:
+            if _cross_encoder is None:
+                from sentence_transformers import CrossEncoder
+                print("Loading cross-encoder model (first call only)...")
+                _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+                print("✅ Cross-encoder ready.")
     return _cross_encoder
 
 
@@ -288,7 +298,8 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
         # ── Cross-encoder re-ranking ──────────────────────────────────────
         encoder = _get_cross_encoder()
         pairs   = [(query_text, c["text"]) for c in candidates]
-        scores  = encoder.predict(pairs).tolist()
+        with _inference_lock:
+            scores  = encoder.predict(pairs).tolist()
 
         for candidate, score in zip(candidates, scores):
             candidate["score"] = round(float(score), 4)
