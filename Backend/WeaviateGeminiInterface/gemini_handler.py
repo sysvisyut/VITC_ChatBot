@@ -1,6 +1,7 @@
 import os
 import google.generativeai as genai
-from typing import List, Literal
+from typing import List, Literal, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 # gemini config
 global GEMINI_MODEL
@@ -20,6 +21,90 @@ def configure_gemini():
     except Exception as e:
         print(f"❌ Error configuring Gemini API: {e}")
         return False
+
+
+# ---------------------------------------------------------------------------
+# Query rewriting  (cheap, fast, isolated from the main answer model)
+# ---------------------------------------------------------------------------
+
+# Use the same model family as the main answer model (read from env at call
+# time so we pick up whatever the user has configured).  We create a fresh
+# GenerativeModel instance so state is fully isolated from GEMINI_MODEL.
+_REWRITE_TIMEOUT_S = 3          # wall-clock seconds before we give up
+
+_REWRITE_PROMPT = """\
+You are a search-query optimizer for a VIT Chennai campus documentation chatbot.
+Your ONLY job is to rewrite the user's input into a clear, specific, self-contained question
+that will retrieve the most relevant information from VIT Chennai's official documents.
+
+Rules:
+- Output ONLY the rewritten question — no preamble, no explanation, no quotes.
+- Keep the rewritten question under 50 words.
+- If the input is already clear and specific, return it unchanged.
+- Expand abbreviations and vague terms (e.g. "hostel rules" → full question about hostel regulations).
+- Always include "VIT Chennai" or "VITC" if the context is campus-specific.
+
+User input: {query}
+"""
+
+
+def rewrite_query(original_query: str) -> Optional[str]:
+    """
+    Rewrites a vague/short user query into a fuller, unambiguous question
+    using a lightweight Gemini Flash model.
+
+    Returns:
+        The rewritten query string, or None if the call failed / timed out.
+        Callers MUST fall back to the original query when None is returned.
+
+    This function is intentionally isolated:
+      - Uses its OWN model instance (not GEMINI_MODEL) so config failures are
+        independent of the main answer pipeline.
+      - Has a hard wall-clock timeout so it can NEVER block the main pipeline.
+    """
+    def _call() -> str:
+        # Read model name at call time — picks up configure_gemini()'s env load.
+        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        model  = genai.GenerativeModel(model_name)
+        prompt = _REWRITE_PROMPT.format(query=original_query)
+        resp   = model.generate_content(
+            prompt,
+            generation_config={"max_output_tokens": 512, "temperature": 0.1},
+        )
+        return resp.text.strip()
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_call)
+            rewritten = future.result(timeout=_REWRITE_TIMEOUT_S)
+
+        # Sanity guard: if the model returned something very long or empty,
+        # treat it as a failure and fall back.
+        if not rewritten or len(rewritten) > 400:
+            print("  [rewrite] Output out of bounds — falling back to original.")
+            return None
+
+        # Sentence-completion guard: if the text ends without sentence-ending
+        # punctuation the model ran out of tokens mid-sentence. Attempt to
+        # truncate at the last clean sentence boundary; if none found, fall back.
+        if rewritten[-1] not in ('.', '?', '!'):
+            for punct in ('?', '.', '!'):
+                last = rewritten.rfind(punct)
+                if last > len(rewritten) // 2:  # at least half the text is usable
+                    rewritten = rewritten[:last + 1]
+                    break
+            else:
+                print("  [rewrite] Incomplete sentence, no clean boundary — falling back to original.")
+                return None
+
+        return rewritten
+
+    except FuturesTimeoutError:
+        print(f"  [rewrite] Timed out after {_REWRITE_TIMEOUT_S}s — falling back to original.")
+        return None
+    except Exception as e:
+        print(f"  [rewrite] Failed ({e}) — falling back to original.")
+        return None
 
 
 # ---------------------------------------------------------------------------

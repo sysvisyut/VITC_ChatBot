@@ -18,7 +18,7 @@ from WeaviateGeminiInterface.weaviate_handler import (
     ingest_incrementally,
     retrieve_chunks,
 )
-from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer
+from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer, rewrite_query
 
 
 def query(user_query: str):
@@ -58,10 +58,21 @@ def query(user_query: str):
 
         # --- RAG Workflow ---
         print("\n--- Ready to answer questions ---")
-        print(f"\nUser Query: '{user_query}'")
+        print(f"[query] Original : '{user_query}'")
 
-        retrieved_chunks = retrieve_chunks(documents_collection, user_query, limit=3)
-        final_answer = generate_answer(retrieved_chunks, user_query)
+        # --- Query rewriting (cheap Gemini Flash call, 3s timeout) ---
+        rewritten = rewrite_query(user_query)
+        if rewritten and rewritten.strip() != user_query.strip():
+            retrieval_query = rewritten
+            print(f"[query] Rewritten : '{retrieval_query}'")
+        else:
+            retrieval_query = user_query
+            print(f"[query] Rewrite unchanged or skipped — using original.")
+
+        # Retrieve using the rewritten query; answer using the ORIGINAL so the
+        # user's phrasing is preserved in the final response.
+        retrieved_chunks = retrieve_chunks(documents_collection, retrieval_query, limit=3)
+        final_answer = generate_answer(retrieved_chunks, user_query)  # original query
         return final_answer
 
     except Exception as e:
