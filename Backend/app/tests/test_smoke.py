@@ -60,7 +60,7 @@ def test_retrieve_returns_non_empty_answer():
       - HTTP 200
       - Response body has an 'answer' key
       - 'answer' is a non-empty string (Gemini generated something)
-      - 'sources' key exists (even if empty list is acceptable here)
+      - 'sources' is a non-empty list; each item has document_name and page_number
 
     This test will fail if:
       - The Weaviate collection is empty (run ingestion first)
@@ -80,13 +80,13 @@ def test_retrieve_returns_non_empty_answer():
 
     body = response.json()
 
+    # --- answer checks ---
     assert "answer" in body, f"'answer' key missing from response: {body}"
     assert isinstance(body["answer"], str), f"'answer' is not a string: {body}"
     assert len(body["answer"].strip()) > 0, (
         f"'answer' is empty or whitespace-only. "
         f"Check Weaviate collection is populated. Body: {body}"
     )
-    assert "sources" in body, f"'sources' key missing from response: {body}"
 
     # Sanity: the answer should not be the generic fallback string
     fallback = "I could not find any relevant information to answer your question."
@@ -94,3 +94,17 @@ def test_retrieve_returns_non_empty_answer():
         "RAG returned the no-results fallback. "
         "Weaviate collection may be empty or retrieval is broken."
     )
+
+    # --- sources checks (now authoritative from retrieval metadata) ---
+    assert "sources" in body, f"'sources' key missing from response: {body}"
+    sources = body["sources"]
+    assert isinstance(sources, list), f"'sources' should be a list, got: {type(sources)}"
+    assert len(sources) > 0, (
+        "'sources' is empty — retrieval returned chunks but no provenance metadata."
+    )
+    for src in sources:
+        assert "document_name" in src, f"Source missing 'document_name': {src}"
+        assert "page_number"   in src, f"Source missing 'page_number': {src}"
+        assert isinstance(src["document_name"], str) and src["document_name"], (
+            f"'document_name' is empty or not a string: {src}"
+        )

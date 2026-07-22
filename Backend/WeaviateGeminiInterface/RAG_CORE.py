@@ -60,7 +60,7 @@ def query(user_query: str):
         print("\n--- Ready to answer questions ---")
         print(f"\nUser Query: '{user_query}'")
 
-        retrieved_chunks = retrieve_chunks(documents_collection, user_query, limit=5)
+        retrieved_chunks = retrieve_chunks(documents_collection, user_query, limit=3)
         final_answer = generate_answer(retrieved_chunks, user_query)
         return final_answer
 

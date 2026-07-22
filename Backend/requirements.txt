@@ -12,3 +12,4 @@ pytest
 httpx
 # --- RAG ---
 langchain-text-splitters
+sentence-transformers

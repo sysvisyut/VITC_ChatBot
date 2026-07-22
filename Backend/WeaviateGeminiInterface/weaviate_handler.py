@@ -1,12 +1,28 @@
 import os
 import json
-import hashlib
 import weaviate
 from pathlib import Path
+from typing import List
 from weaviate.classes.init import Auth
 from weaviate.classes.config import Configure, Property, DataType
 from weaviate.exceptions import WeaviateQueryError, WeaviateConnectionError
 from weaviate.classes.query import Filter
+
+# ---------------------------------------------------------------------------
+# Cross-encoder singleton — loaded once, reused across all queries
+# ---------------------------------------------------------------------------
+
+_cross_encoder = None
+
+def _get_cross_encoder():
+    """Lazy-load the cross-encoder model (downloads ~80 MB on first call)."""
+    global _cross_encoder
+    if _cross_encoder is None:
+        from sentence_transformers import CrossEncoder
+        print("Loading cross-encoder model (first call only)...")
+        _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        print("✅ Cross-encoder ready.")
+    return _cross_encoder
 
 
 # ---------------------------------------------------------------------------
@@ -217,31 +233,62 @@ def ingest_incrementally(client, collection, pdf_directory: str, process_fn):
 
 
 # ---------------------------------------------------------------------------
-# Retrieval
+# Retrieval — hybrid search + cross-encoder re-ranking
 # ---------------------------------------------------------------------------
 
-def retrieve_chunks(collection, query_text, limit=5):
-    """Retrieves relevant text chunks from the Weaviate collection."""
+def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
+    """
+    Two-stage retrieval:
+      1. Hybrid search (vector + BM25, alpha=0.75) → 10 candidates
+      2. Cross-encoder re-ranking → top `limit` results
+
+    Returns List[dict] with keys:
+      text, source_file, page_number, doc_type, section_name, score
+    """
+    CANDIDATE_LIMIT = 10
+
     try:
-        print("Retrieving relevant documents from Weaviate...")
-        response = collection.query.near_text(
+        print("Retrieving candidates via hybrid search...")
+        response = collection.query.hybrid(
             query=query_text,
-            limit=limit,
+            alpha=0.75,          # 75% vector, 25% BM25
+            limit=CANDIDATE_LIMIT,
             return_properties=["text_chunk", "source_file", "page_number", "doc_type", "section_name"],
         )
 
-        retrieved_chunks = []
-        if response.objects:
-            retrieved_chunks = [obj.properties["text_chunk"] for obj in response.objects]
-
-        if not retrieved_chunks:
+        if not response.objects:
             print("No relevant documents found in Weaviate for your query.")
             return []
 
-        print(f"✅ Retrieved {len(retrieved_chunks)} document(s):")
-        for i, chunk in enumerate(retrieved_chunks):
-            print(f"  - Chunk {i+1}: {chunk[:100]}...")
-        return retrieved_chunks
+        candidates = [
+            {
+                "text":         obj.properties.get("text_chunk", ""),
+                "source_file":  obj.properties.get("source_file", ""),
+                "page_number":  obj.properties.get("page_number"),
+                "doc_type":     obj.properties.get("doc_type", ""),
+                "section_name": obj.properties.get("section_name"),
+                "score":        0.0,
+            }
+            for obj in response.objects
+        ]
+        print(f"  → {len(candidates)} candidate(s) from hybrid search.")
+
+        # ── Cross-encoder re-ranking ──────────────────────────────────────
+        encoder = _get_cross_encoder()
+        pairs   = [(query_text, c["text"]) for c in candidates]
+        scores  = encoder.predict(pairs).tolist()
+
+        for candidate, score in zip(candidates, scores):
+            candidate["score"] = round(float(score), 4)
+
+        reranked = sorted(candidates, key=lambda c: c["score"], reverse=True)[:limit]
+
+        print(f"✅ Re-ranked top {len(reranked)} result(s):")
+        for i, r in enumerate(reranked):
+            print(f"  [{i+1}] score={r['score']:+.3f}  src={r['source_file']}  pg={r['page_number']}")
+            print(f"       {r['text'][:100]}...")
+
+        return reranked
 
     except WeaviateQueryError as e:
         print(f"❌ Weaviate query error: {e}")
