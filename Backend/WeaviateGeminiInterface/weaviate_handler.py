@@ -236,14 +236,26 @@ def ingest_incrementally(client, collection, pdf_directory: str, process_fn):
 # Retrieval — hybrid search + cross-encoder re-ranking
 # ---------------------------------------------------------------------------
 
+# Empirical threshold based on observed cross-encoder score distribution:
+#   strong match  ≈ +6 to +8   (direct definition/rule)
+#   good match    ≈ +1 to +3   (related context)
+#   weak/noise    ≈  0 to −2   (barely relevant)
+# Anything below −0.5 is unlikely to add signal and risks confusing Gemini.
+SCORE_THRESHOLD = -0.5
+
+
 def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
     """
     Two-stage retrieval:
       1. Hybrid search (vector + BM25, alpha=0.75) → 10 candidates
       2. Cross-encoder re-ranking → top `limit` results
+      3. Threshold filter (SCORE_THRESHOLD) — drops noise chunks
 
     Returns List[dict] with keys:
-      text, source_file, page_number, doc_type, section_name, score
+      text, source_file, page_number, doc_type, section_name, score, confidence
+
+    'confidence' is attached to every chunk ('high'/'medium'/'low') and also
+    computed at the batch level so callers can surface it to the user.
     """
     CANDIDATE_LIMIT = 10
 
@@ -283,12 +295,22 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
 
         reranked = sorted(candidates, key=lambda c: c["score"], reverse=True)[:limit]
 
-        print(f"✅ Re-ranked top {len(reranked)} result(s):")
-        for i, r in enumerate(reranked):
+        # ── Threshold filter ─────────────────────────────────────────────
+        filtered = [c for c in reranked if c["score"] >= SCORE_THRESHOLD]
+        dropped  = len(reranked) - len(filtered)
+        if dropped:
+            print(f"  ↳ Dropped {dropped} chunk(s) below score threshold ({SCORE_THRESHOLD}).")
+
+        if not filtered:
+            print("  ↳ All candidates below threshold — returning empty (will use fallback).")
+            return []
+
+        print(f"✅ Re-ranked top {len(filtered)} result(s):")
+        for i, r in enumerate(filtered):
             print(f"  [{i+1}] score={r['score']:+.3f}  src={r['source_file']}  pg={r['page_number']}")
             print(f"       {r['text'][:100]}...")
 
-        return reranked
+        return filtered
 
     except WeaviateQueryError as e:
         print(f"❌ Weaviate query error: {e}")

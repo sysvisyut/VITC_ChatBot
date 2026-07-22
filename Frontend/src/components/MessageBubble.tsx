@@ -10,9 +10,10 @@ interface MessageBubbleProps {
   content: string;
   timestamp: Date;
   sources?: Source[];
+  confidence?: "high" | "medium" | "low";
 }
 
-export const MessageBubble = ({ role, content, timestamp, sources }: MessageBubbleProps) => {
+export const MessageBubble = ({ role, content, timestamp, sources, confidence }: MessageBubbleProps) => {
   const [copied, setCopied] = useState(false);
   const [showSources, setShowSources] = useState(false);
 
@@ -94,7 +95,24 @@ export const MessageBubble = ({ role, content, timestamp, sources }: MessageBubb
           </div>
 
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-            <p className="text-xs text-muted-foreground">{formatTime(timestamp)}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">{formatTime(timestamp)}</p>
+              {confidence && (
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    confidence === "high"
+                      ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                      : confidence === "medium"
+                      ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                      : "bg-orange-500/15 text-orange-600 dark:text-orange-400"
+                  }`}
+                >
+                  {confidence === "high" ? "✓ High confidence"
+                    : confidence === "medium" ? "~ Medium confidence"
+                    : "! Low confidence"}
+                </span>
+              )}
+            </div>
             <Button
               onClick={handleCopy}
               variant="ghost"

@@ -45,6 +45,7 @@ export default function Chat() {
         content: response.answer,
         timestamp: new Date(),
         sources: response.sources,
+        confidence: response.confidence,
       };
 
       setMessages((prev) => {
@@ -103,6 +104,7 @@ export default function Chat() {
                   content={message.content}
                   timestamp={message.timestamp}
                   sources={message.sources}
+                  confidence={message.confidence}
                 />
               ))}
               {isLoading && <TypingIndicator />}

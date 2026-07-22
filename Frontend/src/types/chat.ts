@@ -1,6 +1,8 @@
 export interface Source {
-  page_number: number | string; // Gemini may return either; normalise on display
   document_name: string;
+  page_number:   number | string;
+  doc_type?:     string;
+  section_name?: string | null;
 }
 
 export interface Message {
@@ -9,6 +11,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   sources?: Source[];
+  confidence?: "high" | "medium" | "low";
 }
 
 export interface ChatSession {
@@ -20,6 +23,7 @@ export interface ChatSession {
 }
 
 export interface ApiResponse {
-  answer: string;
-  sources: Source[];
+  answer:     string;
+  sources:    Source[];
+  confidence: "high" | "medium" | "low";
 }
