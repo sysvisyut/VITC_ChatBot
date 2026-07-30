@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from .routers import retrieve, user
 import logging
 
@@ -11,7 +15,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Rate limiter setup
+from app.limiter import limiter
+
 app = FastAPI(title="VIT Chennai AI Assistant API", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Enable CORS for frontend connection
 app.add_middleware(

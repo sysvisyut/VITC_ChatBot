@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, status, File, UploadFile, Form, HTTPException, Request
 from ..import schemas, database
 from typing import Optional
 import logging
@@ -12,8 +12,11 @@ router = APIRouter(
 )
 
 
+from app.limiter import limiter
+
 @router.post("/", response_model=schemas.RetrieveResponse)
-def retrieve(req: schemas.RetrieveRequest):
+@limiter.limit("10/minute")
+def retrieve(req: schemas.RetrieveRequest, request: Request):
     try:
         result = query_rag(req.query)
         return schemas.RetrieveResponse(
