@@ -6,9 +6,13 @@ from app.utils.rag_adaptor import query_rag
 
 logger = logging.getLogger(__name__)
 
+from fastapi import APIRouter, status, File, UploadFile, Form, HTTPException, Request, Depends
+from app.auth import get_api_key
+
 router = APIRouter(
     prefix = '/retrieve',
-    tags = ["Retrieval"]
+    tags = ["Retrieval"],
+    dependencies=[Depends(get_api_key)]
 )
 
 

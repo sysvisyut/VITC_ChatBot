@@ -34,8 +34,8 @@ app.add_middleware(
         "https://vitc-chat-bot-frontend.vercel.app"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 @app.get('/')

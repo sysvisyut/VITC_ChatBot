@@ -13,6 +13,7 @@ export const chatApi = {
         {
           headers: {
             "Content-Type": "application/json",
+            "X-API-Key": import.meta.env.VITE_API_KEY || "",
           },
           timeout: 30000, // 30 second timeout
         }

@@ -198,6 +198,19 @@ def generate_answer(context_chunks: List[dict], query_text: str) -> dict:
                 "section_name":  chunk.get("section_name"),
             })
 
+    # ── Prompt Injection Sanitization ────────────────────────────────────────
+    # Strip known injection keywords from the user's query so they can't break
+    # out of the QUESTION block or override system instructions.
+    sanitized_query = query_text
+    denylist = [
+        "CONTEXT:", "---", "QUESTION:", "IGNORE PREVIOUS INSTRUCTIONS",
+        "SYSTEM:", "INSTRUCTION:", "NEW RULE:"
+    ]
+    for pattern in denylist:
+        # Case-insensitive replace with empty string
+        import re
+        sanitized_query = re.sub(pattern, "", sanitized_query, flags=re.IGNORECASE)
+
     # ── Prompt ───────────────────────────────────────────────────────────────
     prompt = f"""You are a helpful assistant for VIT Chennai campus information.
 
@@ -212,7 +225,7 @@ Rules you MUST follow:
 3. If the context does not contain enough information to fully answer the question, say so explicitly rather than guessing.
 4. Be concise and direct. Do not repeat the question.
 
-QUESTION: {query_text}
+QUESTION: {sanitized_query.strip()}
 """
 
     try:
