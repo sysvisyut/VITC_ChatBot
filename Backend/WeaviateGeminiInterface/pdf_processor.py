@@ -4,6 +4,8 @@ import camelot
 import pandas as pd
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +100,7 @@ def process_single_pdf(file_path: str) -> list[dict]:
     doc_type  = _derive_doc_type(filename)
     chunks    = []
 
-    print(f"\n--- Processing file: {filename} ---")
+    logger.info(f"\n--- Processing file: {filename} ---")
 
     try:
         # ----------------------------------------------------------------
@@ -107,7 +109,7 @@ def process_single_pdf(file_path: str) -> list[dict]:
         tables = camelot.read_pdf(file_path, pages="all", flavor="lattice")
         table_locations: dict[int, list] = {}
 
-        print(f"  Found {tables.n} table(s). Extracting to Markdown...")
+        logger.info(f"  Found {tables.n} table(s). Extracting to Markdown...")
         for table in tables:
             page_no = int(table.page)
             table_locations.setdefault(page_no, []).append(table._bbox)
@@ -164,9 +166,9 @@ def process_single_pdf(file_path: str) -> list[dict]:
         doc.close()
 
     except Exception as e:
-        print(f"❌ Error processing {filename}: {e}")
+        logger.error(f"❌ Error processing {filename}: {e}f")
 
-    print(f"  → {len(chunks)} chunk(s) extracted.")
+    logger.info(f"  → {len(chunks)} chunk(s) extracted.")
     return chunks
 
 
@@ -189,5 +191,5 @@ def process_pdfs_in_directory(directory_path: str) -> list[dict]:
     for pdf_file in sorted(pdf_dir.glob("*.pdf")):
         all_chunks.extend(process_single_pdf(str(pdf_file)))
 
-    print(f"\n✅ Total chunks extracted from all files: {len(all_chunks)}")
+    logger.info(f"\n✅ Total chunks extracted from all files: {len(all_chunks)}")
     return all_chunks

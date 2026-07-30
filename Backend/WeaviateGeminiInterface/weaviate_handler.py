@@ -10,6 +10,8 @@ from weaviate.classes.query import Filter
 
 import threading
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 # Fix HuggingFace tokenizers crashing in FastAPI threadpools
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -29,9 +31,9 @@ def _get_cross_encoder():
         with _encoder_lock:
             if _cross_encoder is None:
                 from sentence_transformers import CrossEncoder
-                print("Loading cross-encoder model (first call only)...")
+                logger.info("Loading cross-encoder model (first call only)...")
                 _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-                print("✅ Cross-encoder ready.")
+                logger.info("✅ Cross-encoder ready.")
     return _cross_encoder
 
 
@@ -45,21 +47,21 @@ def connect_to_weaviate():
         WEAVIATE_URL = os.getenv("WEAVIATE_URL")
         WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
         if not WEAVIATE_URL or not WEAVIATE_API_KEY:
-            print("❌ WEAVIATE_URL / WEAVIATE_API_KEY not set in environment.")
+            logger.error("❌ WEAVIATE_URL / WEAVIATE_API_KEY not set in environment.")
             return None
-        print("Connecting to Weaviate Cloud...")
+        logger.info("Connecting to Weaviate Cloud...")
         client = weaviate.connect_to_weaviate_cloud(
             cluster_url=WEAVIATE_URL,
             auth_credentials=Auth.api_key(WEAVIATE_API_KEY),
             skip_init_checks=True,  # gRPC health-check DNS issues on some networks
         )
         if not client.is_ready():
-            print("❌ Could not connect to Weaviate. Check your credentials.")
+            logger.error("❌ Could not connect to Weaviate. Check your credentials.")
             return None
-        print("✅ Weaviate connection successful.")
+        logger.info("✅ Weaviate connection successful.")
         return client
-    except WeaviateConnectionError as e:
-        print(f"❌ Weaviate connection error: {e}")
+    except Exception as e:
+        logger.error(f"❌ Weaviate connection error: {e}")
         return None
 
 
@@ -95,7 +97,7 @@ def get_or_create_collection(client, collection_name="VIT_docs", fresh_start=Fal
             )
             print(f"✅ Collection '{collection_name}' created.")
         except Exception as e:
-            print(f"❌ Error creating collection: {e}")
+            logger.error(f"❌ Error creating collection: {e}f")
             return None
     else:
         print(f"Collection '{collection_name}' already exists.")
@@ -110,7 +112,7 @@ def get_or_create_collection(client, collection_name="VIT_docs", fresh_start=Fal
 def ingest_data(collection, data_objects):
     """Bulk-ingests a list of chunk dicts into the collection."""
     if not data_objects:
-        print("Warning: No data provided for ingestion.")
+        logger.warning("Warning: No data provided for ingestion.")
         return
 
     print(f"Ingesting {len(data_objects)} objects into '{collection.name}'...")
@@ -123,11 +125,11 @@ def ingest_data(collection, data_objects):
         if collection.batch.failed_objects:
             failed = len(collection.batch.failed_objects)
     except Exception as e:
-        print(f"❌ Error during data ingestion: {e}")
+        logger.error(f"❌ Error during data ingestion: {e}f")
         return
 
     success = len(data_objects) - failed
-    print(f"✅ Ingestion done — {success} succeeded, {failed} failed.")
+    logger.info(f"✅ Ingestion done — {success} succeeded, {failed} failed.")
 
 
 def delete_chunks_from_source(collection, source_filename):
@@ -136,7 +138,7 @@ def delete_chunks_from_source(collection, source_filename):
     the whole collection.
     """
     if not source_filename:
-        print("Warning: No source filename provided for deletion.")
+        logger.warning("Warning: No source filename provided for deletion.")
         return 0
 
     print(f"  Deleting stale chunks for '{source_filename}'...")
@@ -148,9 +150,9 @@ def delete_chunks_from_source(collection, source_filename):
         matched    = getattr(response, "matches",         getattr(response, "matched_count",    "?"))
         successful = getattr(response, "successful",      getattr(response, "successful_count", "?"))
         failed     = getattr(response, "failed",          getattr(response, "failed_count",     0))
-        print(f"  ↳ Matched {matched}, deleted {successful}.")
+        logger.info(f"  ↳ Matched {matched}, deleted {successful}.")
         if failed:
-            print(f"  ⚠️  Failed to delete {failed} object(s).")
+            logger.info(f"  ⚠️  Failed to delete {failed} object(s).")
         return successful if isinstance(successful, int) else 0
     except Exception as e:
         print(f"❌ Deletion error for '{source_filename}': {e}")
@@ -198,7 +200,7 @@ def ingest_incrementally(client, collection, pdf_directory: str, process_fn):
     """
     pdf_dir = Path(pdf_directory)
     if not pdf_dir.is_dir():
-        print(f"❌ PDF directory not found: {pdf_directory}")
+        logger.error(f"❌ PDF directory not found: {pdf_directory}f")
         return
 
     manifest = _load_manifest()
@@ -208,21 +210,21 @@ def ingest_incrementally(client, collection, pdf_directory: str, process_fn):
 
     pdf_files = sorted(pdf_dir.glob("*.pdf"))
     if not pdf_files:
-        print("No PDF files found in directory.")
+        logger.info("No PDF files found in directory.")
         return
 
-    print(f"\n🔍 Checking {len(pdf_files)} PDF(s) for changes...")
+    logger.info(f"\n🔍 Checking {len(pdf_files)} PDF(s) for changes...")
 
     for pdf_path in pdf_files:
         filename = pdf_path.name
         fingerprint = _file_mtime(str(pdf_path))
 
         if manifest.get(filename) == fingerprint:
-            print(f"  ⏭️  {filename} — unchanged, skipping.")
+            logger.info(f"  ⏭️  {filename} — unchanged, skipping.")
             skipped += 1
             continue
 
-        print(f"  🔄 {filename} — new or changed, re-ingesting...")
+        logger.info(f"  🔄 {filename} — new or changed, re-ingesting...")
         # Delete stale chunks before inserting fresh ones
         delete_chunks_from_source(collection, filename)
 
@@ -270,7 +272,7 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
     CANDIDATE_LIMIT = 10
 
     try:
-        print("Retrieving candidates via hybrid search...")
+        logger.info("Retrieving candidates via hybrid search...")
         response = collection.query.hybrid(
             query=query_text,
             alpha=0.75,          # 75% vector, 25% BM25
@@ -279,7 +281,7 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
         )
 
         if not response.objects:
-            print("No relevant documents found in Weaviate for your query.")
+            logger.info("No relevant documents found in Weaviate for your query.")
             return []
 
         candidates = [
@@ -293,7 +295,7 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
             }
             for obj in response.objects
         ]
-        print(f"  → {len(candidates)} candidate(s) from hybrid search.")
+        logger.info(f"  → {len(candidates)} candidate(s) from hybrid search.")
 
         # ── Cross-encoder re-ranking ──────────────────────────────────────
         encoder = _get_cross_encoder()
@@ -310,13 +312,13 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
         filtered = [c for c in reranked if c["score"] >= SCORE_THRESHOLD]
         dropped  = len(reranked) - len(filtered)
         if dropped:
-            print(f"  ↳ Dropped {dropped} chunk(s) below score threshold ({SCORE_THRESHOLD}).")
+            logger.info(f"  ↳ Dropped {dropped} chunk(s) below score threshold ({SCORE_THRESHOLD}).")
 
         if not filtered:
-            print("  ↳ All candidates below threshold — returning empty (will use fallback).")
+            logger.info("  ↳ All candidates below threshold — returning empty (will use fallback).")
             return []
 
-        print(f"✅ Re-ranked top {len(filtered)} result(s):")
+        logger.info(f"✅ Re-ranked top {len(filtered)} result(s):")
         for i, r in enumerate(filtered):
             print(f"  [{i+1}] score={r['score']:+.3f}  src={r['source_file']}  pg={r['page_number']}")
             print(f"       {r['text'][:100]}...")
@@ -324,5 +326,5 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
         return filtered
 
     except WeaviateQueryError as e:
-        print(f"❌ Weaviate query error: {e}")
+        logger.error(f"❌ Weaviate query error: {e}f")
         return []

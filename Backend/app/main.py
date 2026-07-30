@@ -1,6 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import retrieve, user
+import logging
+
+# Centralized logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="VIT Chennai AI Assistant API", version="1.0.0")
 
@@ -21,6 +30,7 @@ app.add_middleware(
 
 @app.get('/')
 def test_server():
+    logger.info("Health check endpoint called")
     return {"status": "ok", "message": "VIT Chennai AI Assistant API is running"}
 
 app.include_router(retrieve.router)

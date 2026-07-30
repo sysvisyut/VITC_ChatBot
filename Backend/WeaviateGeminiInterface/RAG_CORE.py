@@ -1,5 +1,9 @@
 import sys
+import time
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path so WeaviateGeminiInterface can be imported
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -57,34 +61,44 @@ def query(user_query: str):
         )
 
         # --- RAG Workflow ---
-        print("\n--- Ready to answer questions ---")
-        print(f"[query] Original : '{user_query}'")
+        logger.info(f"--- Ready to answer questions ---")
+        logger.info(f"[query] Original : '{user_query}'")
 
         # --- Query rewriting (cheap Gemini Flash call, 3s timeout) ---
         rewritten = rewrite_query(user_query)
         if rewritten and rewritten.strip() != user_query.strip():
             retrieval_query = rewritten
-            print(f"[query] Rewritten : '{retrieval_query}'")
+            logger.info(f"[query] Rewritten : '{retrieval_query}'")
         else:
             retrieval_query = user_query
-            print(f"[query] Rewrite unchanged or skipped — using original.")
+            logger.info("[query] Rewrite unchanged or skipped — using original.")
 
         # Retrieve using the rewritten query; answer using the ORIGINAL so the
         # user's phrasing is preserved in the final response.
+        t0 = time.perf_counter()
         retrieved_chunks = retrieve_chunks(documents_collection, retrieval_query, limit=3)
+        t1 = time.perf_counter()
+        
         final_answer = generate_answer(retrieved_chunks, user_query)  # original query
+        t2 = time.perf_counter()
+
+        retrieval_ms = int((t1 - t0) * 1000)
+        generation_ms = int((t2 - t1) * 1000)
+        logger.info(f"RAG workflow completed in {retrieval_ms + generation_ms}ms "
+                    f"(retrieval_ms={retrieval_ms}, generation_ms={generation_ms}, "
+                    f"chunks_retrieved={len(retrieved_chunks)})")
+
         return final_answer
 
     except Exception as e:
-        print(f"❌ An unexpected error occurred in the main workflow: {e}")
+        logger.exception(f"An unexpected error occurred in the main workflow: {e}")
 
     finally:
         if client and client.is_connected():
             client.close()
-            print("\nConnection to Weaviate closed.")
-
+            logger.info("Connection to Weaviate closed.")
 
 if __name__ == "__main__":
     result = query("What is VITC?")
     if result:
-        print(f"\n✅ Final Answer: {result}")
+        logger.info(f"Final Answer: {result}")

@@ -2,6 +2,8 @@ import os
 import google.generativeai as genai
 from typing import List, Literal, Optional
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+import logging
+logger = logging.getLogger(__name__)
 
 # gemini config
 global GEMINI_MODEL
@@ -11,15 +13,15 @@ def configure_gemini():
     GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL   = os.getenv("GEMINI_MODEL")
     if not GOOGLE_API_KEY or not GEMINI_MODEL:
-        print("❌ GOOGLE_API_KEY/MODEL SELECTION not found in .env file.")
+        logger.error("❌ GOOGLE_API_KEY/MODEL SELECTION not found in .env file.")
         return False
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
         GEMINI_MODEL = genai.GenerativeModel(GEMINI_MODEL)
-        print("✅ Gemini API configured successfully.")
+        logger.info("✅ Gemini API configured successfully.")
         return True
     except Exception as e:
-        print(f"❌ Error configuring Gemini API: {e}")
+        logger.error(f"❌ Error configuring Gemini API: {e}f")
         return False
 
 
@@ -81,7 +83,7 @@ def rewrite_query(original_query: str) -> Optional[str]:
         # Sanity guard: if the model returned something very long or empty,
         # treat it as a failure and fall back.
         if not rewritten or len(rewritten) > 400:
-            print("  [rewrite] Output out of bounds — falling back to original.")
+            logger.info("  [rewrite] Output out of bounds — falling back to original.")
             return None
 
         # Sentence-completion guard: if the text ends without sentence-ending
@@ -94,16 +96,16 @@ def rewrite_query(original_query: str) -> Optional[str]:
                     rewritten = rewritten[:last + 1]
                     break
             else:
-                print("  [rewrite] Incomplete sentence, no clean boundary — falling back to original.")
+                logger.info("  [rewrite] Incomplete sentence, no clean boundary — falling back to original.")
                 return None
 
         return rewritten
 
     except FuturesTimeoutError:
-        print(f"  [rewrite] Timed out after {_REWRITE_TIMEOUT_S}s — falling back to original.")
+        logger.info(f"  [rewrite] Timed out after {_REWRITE_TIMEOUT_S}s — falling back to original.")
         return None
     except Exception as e:
-        print(f"  [rewrite] Failed ({e}) — falling back to original.")
+        logger.info(f"  [rewrite] Failed ({e}) — falling back to original.")
         return None
 
 
@@ -163,7 +165,7 @@ def generate_answer(context_chunks: List[dict], query_text: str) -> dict:
     confidence = _compute_confidence(context_chunks)
 
     if not GEMINI_MODEL:
-        print("❌ Gemini model is not configured. Please call configure_gemini() first.")
+        logger.error("❌ Gemini model is not configured. Please call configure_gemini() first.")
         return {"answer": "Error: Gemini model not configured.", "sources": [], "confidence": "low"}
 
     if not context_chunks:
@@ -214,7 +216,7 @@ QUESTION: {query_text}
 """
 
     try:
-        print("\nGenerating answer with Gemini...")
+        logger.info("\nGenerating answer with Gemini...")
         response = GEMINI_MODEL.generate_content(prompt)
         answer_text = response.text.strip()
 
@@ -225,7 +227,7 @@ QUESTION: {query_text}
         }
 
     except Exception as e:
-        print(f"❌ Error generating content with Gemini: {e}")
+        logger.error(f"❌ Error generating content with Gemini: {e}f")
         return {
             "answer":     "Sorry, I encountered an error while generating the answer.",
             "sources":    [],
