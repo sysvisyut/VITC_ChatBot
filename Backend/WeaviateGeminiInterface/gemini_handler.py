@@ -1,8 +1,9 @@
 import os
 import google.generativeai as genai
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Generator
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import logging
+import json
 logger = logging.getLogger(__name__)
 
 # gemini config
@@ -246,3 +247,85 @@ QUESTION: {sanitized_query.strip()}
             "sources":    [],
             "confidence": "low",
         }
+
+def generate_answer_stream(context_chunks: List[dict], query_text: str) -> Generator[str, None, None]:
+    """
+    Generates an answer using Gemini based on retrieved context chunks, streaming the response.
+    Yields SSE-formatted data chunks.
+    """
+    global GEMINI_MODEL
+
+    confidence = _compute_confidence(context_chunks)
+
+    if not GEMINI_MODEL:
+        logger.error("❌ Gemini model is not configured. Please call configure_gemini() first.")
+        yield f'data: {json.dumps({"type": "error", "error": "Gemini model not configured"})}\n\n'
+        return
+
+    if not context_chunks:
+        yield f'data: {json.dumps({"type": "text", "text": "I could not find any relevant information to answer your question."})}\n\n'
+        yield f'data: {json.dumps({"type": "metadata", "sources": [], "confidence": "low"})}\n\n'
+        return
+
+    # ── Build attributed context blocks ─────────────────────────────────────
+    context_blocks = []
+    for chunk in context_chunks:
+        label = f"[Source: {chunk['source_file']}, Page {chunk['page_number']}]"
+        context_blocks.append(f"{label}\n{chunk['text']}")
+    context = "\n\n".join(context_blocks)
+
+    # ── Build deduplicated sources list ──────────────────────────────────────
+    seen_sources: set = set()
+    sources: list = []
+    for chunk in context_chunks:
+        key = (chunk.get("source_file", ""), chunk.get("page_number"))
+        if key not in seen_sources:
+            seen_sources.add(key)
+            sources.append({
+                "document_name": chunk.get("source_file", ""),
+                "page_number":   chunk.get("page_number"),
+                "doc_type":      chunk.get("doc_type", ""),
+                "section_name":  chunk.get("section_name"),
+            })
+
+    # ── Prompt Injection Sanitization ────────────────────────────────────────
+    sanitized_query = query_text
+    denylist = [
+        "CONTEXT:", "---", "QUESTION:", "IGNORE PREVIOUS INSTRUCTIONS",
+        "SYSTEM:", "INSTRUCTION:", "NEW RULE:"
+    ]
+    import re
+    for pattern in denylist:
+        sanitized_query = re.sub(pattern, "", sanitized_query, flags=re.IGNORECASE)
+
+    # ── Prompt ───────────────────────────────────────────────────────────────
+    prompt = f"""You are a helpful assistant for VIT Chennai campus information.
+
+CONTEXT (from official campus documents — each block is labelled with its source):
+---
+{context}
+---
+
+Rules you MUST follow:
+1. Answer ONLY using information present in the context above. Do not use external knowledge.
+2. For every claim or fact in your answer, cite the source and page number in brackets immediately after that sentence, like: [academic_regulations.pdf, p.26]
+3. If the context does not contain enough information to fully answer the question, say so explicitly rather than guessing.
+4. Be concise and direct. Do not repeat the question.
+
+QUESTION: {sanitized_query.strip()}
+"""
+
+    try:
+        logger.info("\nGenerating streaming answer with Gemini...")
+        response = GEMINI_MODEL.generate_content(prompt, stream=True)
+        for chunk in response:
+            if chunk.text:
+                # SSE format requires data: payload\n\n
+                yield f'data: {json.dumps({"type": "text", "text": chunk.text})}\n\n'
+        
+        # Finally yield metadata
+        yield f'data: {json.dumps({"type": "metadata", "sources": sources, "confidence": confidence})}\n\n'
+
+    except Exception as e:
+        logger.error(f"❌ Error generating streaming content with Gemini: {e}")
+        yield f'data: {json.dumps({"type": "error", "error": "Sorry, I encountered an error while generating the answer."})}\n\n'

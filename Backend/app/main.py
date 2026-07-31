@@ -4,7 +4,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from .routers import retrieve, user
+from .routers import retrieve, user, stream
 import logging
 
 # Centralized logging configuration
@@ -44,3 +44,4 @@ def test_server():
     return {"status": "ok", "message": "VIT Chennai AI Assistant API is running"}
 
 app.include_router(retrieve.router)
+app.include_router(stream.router)

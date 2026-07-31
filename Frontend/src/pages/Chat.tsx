@@ -37,40 +37,74 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      const response = await chatApi.sendMessage(content);
+      let isFirstChunk = true;
+      const assistantId = `msg_${Date.now()}_assistant`;
 
-      const assistantMessage: Message = {
-        id: `msg_${Date.now()}_assistant`,
-        role: "assistant",
-        content: response.answer,
-        timestamp: new Date(),
-        sources: response.sources,
-        confidence: response.confidence,
-      };
-
-      setMessages((prev) => {
-        const updatedMessages = [...prev, assistantMessage];
-        
-        // Save to localStorage
-        const session: ChatSession = {
-          id: currentSessionId,
-          title: updatedMessages.length <= 2 ? content.slice(0, 50) : `Chat ${currentSessionId}`,
-          messages: updatedMessages,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        chatStorage.saveSession(session);
-        
-        return updatedMessages;
-      });
+      await chatApi.streamMessage(
+        content,
+        (textChunk) => {
+          if (isFirstChunk) {
+            setIsLoading(false);
+            isFirstChunk = false;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: assistantId,
+                role: "assistant",
+                content: textChunk,
+                timestamp: new Date(),
+              }
+            ]);
+          } else {
+            setMessages((prev) => 
+              prev.map(m => m.id === assistantId ? { ...m, content: m.content + textChunk } : m)
+            );
+          }
+        },
+        (sources, confidence) => {
+          setMessages((prev) => {
+            let updatedMessages;
+            if (isFirstChunk) {
+              setIsLoading(false);
+              isFirstChunk = false;
+              updatedMessages = [
+                ...prev,
+                {
+                  id: assistantId,
+                  role: "assistant",
+                  content: "",
+                  timestamp: new Date(),
+                  sources,
+                  confidence
+                }
+              ];
+            } else {
+              updatedMessages = prev.map(m => 
+                m.id === assistantId ? { ...m, sources, confidence } : m
+              );
+            }
+            
+            // Save to localStorage
+            const session: ChatSession = {
+              id: currentSessionId,
+              title: updatedMessages.length <= 2 ? content.slice(0, 50) : `Chat ${currentSessionId}`,
+              messages: updatedMessages,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            chatStorage.saveSession(session);
+            
+            return updatedMessages;
+          });
+        }
+      );
     } catch (error) {
+      setIsLoading(false);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to get response",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

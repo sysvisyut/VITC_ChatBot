@@ -22,7 +22,7 @@ from WeaviateGeminiInterface.weaviate_handler import (
     ingest_incrementally,
     retrieve_chunks,
 )
-from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer, rewrite_query
+from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer, generate_answer_stream, rewrite_query
 
 
 def query(user_query: str):
@@ -102,3 +102,63 @@ if __name__ == "__main__":
     result = query("What is VITC?")
     if result:
         logger.info(f"Final Answer: {result}")
+
+def query_stream(user_query: str):
+    """
+    Streaming version of the RAG entry point.
+    Yields SSE strings from generate_answer_stream.
+    """
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
+
+    PDF_DIRECTORY = str(Path(__file__).parent.parent / "data")
+
+    # --- API and DB Setup ---
+    if not configure_gemini():
+        import json
+        yield f'data: {json.dumps({"type": "error", "error": "Gemini configuration failed"})}\n\n'
+        return
+        
+    client = connect_to_weaviate()
+    if not client:
+        import json
+        yield f'data: {json.dumps({"type": "error", "error": "Weaviate connection failed"})}\n\n'
+        return
+
+    try:
+        collection_name = "VIT_docs"
+        documents_collection = get_or_create_collection(client, collection_name, fresh_start=False)
+        if documents_collection is None:
+            return
+
+        ingest_incrementally(
+            client=client,
+            collection=documents_collection,
+            pdf_directory=PDF_DIRECTORY,
+            process_fn=process_single_pdf,
+        )
+
+        logger.info(f"--- Ready to answer questions (Streaming) ---")
+        rewritten = rewrite_query(user_query)
+        if rewritten and rewritten.strip() != user_query.strip():
+            retrieval_query = rewritten
+        else:
+            retrieval_query = user_query
+
+        t0 = time.perf_counter()
+        retrieved_chunks = retrieve_chunks(documents_collection, retrieval_query, limit=3)
+        t1 = time.perf_counter()
+        
+        logger.info(f"RAG retrieval completed in {int((t1 - t0) * 1000)}ms")
+
+        # Yield from the generator
+        yield from generate_answer_stream(retrieved_chunks, user_query)
+
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred in the streaming workflow: {e}")
+        import json
+        yield f'data: {json.dumps({"type": "error", "error": "An unexpected error occurred."})}\n\n'
+
+    finally:
+        if client and client.is_connected():
+            client.close()
+            logger.info("Connection to Weaviate closed.")

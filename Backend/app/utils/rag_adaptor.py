@@ -1,7 +1,7 @@
 # this is an adaptor to bridge the gemini RAG app with the backend
 from typing import Any, Dict, List, Optional
 
-from WeaviateGeminiInterface.RAG_CORE import query as core_query
+from WeaviateGeminiInterface.RAG_CORE import query as core_query, query_stream as core_query_stream
 
 def query_rag(query: str):
     """
@@ -20,3 +20,9 @@ def query_rag(query: str):
 
 
     return result
+
+def query_rag_stream(query: str):
+    """
+    Calls the streaming RAG core and yields SSE data chunks.
+    """
+    return core_query_stream(user_query=query)
