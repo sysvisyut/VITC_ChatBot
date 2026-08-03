@@ -1,8 +1,9 @@
 import os
 import json
 import weaviate
+import weaviate.classes as wvc
 from pathlib import Path
-from typing import List
+from typing import List, Callable
 from weaviate.classes.init import Auth
 from weaviate.classes.config import Configure, Property, DataType
 from weaviate.exceptions import WeaviateQueryError, WeaviateConnectionError
@@ -328,5 +329,93 @@ def retrieve_chunks(collection, query_text: str, limit: int = 3) -> List[dict]:
         return filtered
 
     except WeaviateQueryError as e:
-        logger.error(f"❌ Weaviate query error: {e}f")
+        logger.error(f"❌ Weaviate query error: {e}")
         return []
+
+
+# ---------------------------------------------------------------------------
+# Semantic Caching Layer
+# ---------------------------------------------------------------------------
+
+def get_or_create_cache_collection(client, collection_name: str = "VIT_QueryCache"):
+    """
+    Retrieves or creates the Weaviate collection used for semantic caching.
+    """
+    try:
+        if client.collections.exists(collection_name):
+            logger.info(f"Cache collection '{collection_name}' exists.")
+            return client.collections.get(collection_name)
+            
+        logger.info(f"Creating cache collection '{collection_name}'...")
+        collection = client.collections.create(
+            name=collection_name,
+            description="Caches previous RAG queries and their answers.",
+            properties=[
+                wvc.config.Property(name="query", data_type=wvc.config.DataType.TEXT),
+                wvc.config.Property(name="answer", data_type=wvc.config.DataType.TEXT, skip_vectorization=True),
+                wvc.config.Property(name="sources", data_type=wvc.config.DataType.TEXT, skip_vectorization=True),
+                wvc.config.Property(name="timestamp", data_type=wvc.config.DataType.DATE, skip_vectorization=True)
+            ]
+        )
+        return collection
+    except Exception as e:
+        logger.error(f"❌ Error getting/creating cache collection: {e}")
+        return None
+
+def semantic_cache_search(cache_collection, user_query: str, threshold: float = 0.95):
+    """
+    Searches the cache collection for a semantically similar query.
+    Returns a dict with 'answer' and 'sources' if a match is found above the threshold.
+    """
+    try:
+        response = cache_collection.query.near_text(
+            query=user_query,
+            limit=1,
+            return_metadata=wvc.query.MetadataQuery(certainty=True)
+        )
+        if response.objects:
+            best_match = response.objects[0]
+            certainty = best_match.metadata.certainty
+            if certainty >= threshold:
+                logger.info(f"[CACHE HIT - SEMANTIC] Found match (certainty {certainty:.4f})")
+                props = best_match.properties
+                
+                # Parse sources if it's a valid JSON string
+                sources = []
+                if "sources" in props and props["sources"]:
+                    try:
+                        sources = json.loads(props["sources"])
+                    except json.JSONDecodeError:
+                        pass
+                
+                return {
+                    "answer": props.get("answer", ""),
+                    "sources": sources
+                }
+            else:
+                logger.info(f"[CACHE MISS - SEMANTIC] Top match below threshold (certainty {certainty:.4f} < {threshold})")
+        else:
+            logger.info("[CACHE MISS - SEMANTIC] No matches found.")
+    except Exception as e:
+        logger.warning(f"Semantic cache search error: {e}")
+    
+    return None
+
+def semantic_cache_store(cache_collection, user_query: str, answer: str, sources: list):
+    """
+    Stores a query and its answer into the semantic cache.
+    """
+    from datetime import datetime, timezone
+    try:
+        sources_json = json.dumps(sources)
+        cache_collection.data.insert(
+            properties={
+                "query": user_query.strip(),
+                "answer": answer,
+                "sources": sources_json,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        logger.info(f"Stored query in semantic cache: '{user_query[:50]}...'")
+    except Exception as e:
+        logger.warning(f"Semantic cache store error: {e}")
