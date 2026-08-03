@@ -1,0 +1,8 @@
+# Eval-only dependencies — keep out of the main backend requirements.txt
+# Install with: pip install -r eval/requirements.txt
+
+ragas==0.2.12
+datasets
+langchain-google-genai
+langchain-community
+pandas

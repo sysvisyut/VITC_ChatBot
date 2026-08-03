@@ -1,0 +1,152 @@
+[
+  {
+    "id": "hcc_001",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What is the penalty for a student who is found smoking for the first time in the VIT men's hostel?",
+    "ground_truth": "For a first-time smoking violation in the VIT men's hostel, the penalty is Rs. 3000 plus Community Service (participation in Anti-smoking Campaign and Social Services) plus Counselling."
+  },
+  {
+    "id": "hcc_002",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What happens to a student caught with alcohol or possession of even an empty liquor bottle inside the VIT hostel?",
+    "ground_truth": "Bringing liquor, possessing liquor, drinking inside the hostel, or possession of even an empty liquor bottle results in suspension for One Year for the first time. On repetition, it is suspension for Two Years."
+  },
+  {
+    "id": "hcc_003",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What is the fine for bringing a day scholar or non-VITian inside the VIT men's hostel?",
+    "ground_truth": "The penalty for bringing or allowing any Day Scholar, Day Boarder, or Non-VITian inside the VIT men's hostel is Rs. 5000."
+  },
+  {
+    "id": "hcc_004",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What are the consequences for a hostel student involved in theft or stealing at VIT?",
+    "ground_truth": "Theft or stealing results in one year suspension from the University."
+  },
+  {
+    "id": "hcc_005",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What is the penalty for possessing electrical appliances inside the hostel room at VIT?",
+    "ground_truth": "The penalty for possessing electrical appliances inside the hostel room is Rs. 500 plus confiscation of the electrical appliances, which will be returned to the student only after the completion of their degree. On repetition, there is no priority in hostel room allotment."
+  },
+  {
+    "id": "hcc_006",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What is the action taken for a third instance of late coming at the VIT men's hostel?",
+    "ground_truth": "For the third time of late coming, the penalty is Rs. 500. On repetition beyond the third time, the student gets no priority in hostel room counselling."
+  },
+  {
+    "id": "hcc_007",
+    "source": "mens_hostel_code_of_conduct.pdf",
+    "question": "What is the penalty for damaging university property in the VIT hostel?",
+    "ground_truth": "The penalty for damaging university property is Rs. 5000 plus payment of three times the cost of damage, along with Social Services."
+  },
+  {
+    "id": "scc_001",
+    "source": "student_code_of_conduct.pdf",
+    "question": "Who has the authority to impose punishments on students under the VIT Students' Code of Conduct?",
+    "ground_truth": "The Registrar of the Institute has the authority to impose punishments on any student under the VIT Students' Code of Conduct. The Registrar is guided by the recommendation of the Director of Students' Welfare regarding the punishment to be imposed."
+  },
+  {
+    "id": "scc_002",
+    "source": "student_code_of_conduct.pdf",
+    "question": "What is the maximum monetary fine that can be imposed on a student under the VIT Students' Code of Conduct?",
+    "ground_truth": "No monetary fine shall exceed a sum of Rs. 10,000. Such fine amount shall be remitted by the punished student only to any social service organisations in Vellore as may be recommended in the order of punishment."
+  },
+  {
+    "id": "scc_003",
+    "source": "student_code_of_conduct.pdf",
+    "question": "If a student is aggrieved by a disciplinary punishment at VIT, who can they appeal to?",
+    "ground_truth": "If the delinquent student is aggrieved by the imposition of any penalty, he or she may appeal to the Pro-Vice Chancellor, whose decision shall be final and binding."
+  },
+  {
+    "id": "scc_004",
+    "source": "student_code_of_conduct.pdf",
+    "question": "Can a student hire an advocate or lawyer to defend themselves in a VIT disciplinary enquiry?",
+    "ground_truth": "No, a student proceeded against shall not engage any third person or advocate to defend them in the enquiry. However, the student is free to engage the assistance of another student of the Institute to assist them in the enquiry."
+  },
+  {
+    "id": "scc_005",
+    "source": "student_code_of_conduct.pdf",
+    "question": "What does the VIT Student Code of Conduct say about gambling within the Institute?",
+    "ground_truth": "Gambling within the Institute is listed as a specific act of misconduct under the VIT Students' Code of Conduct and is prohibited."
+  },
+  {
+    "id": "scc_006",
+    "source": "student_code_of_conduct.pdf",
+    "question": "Is a student allowed to enter the women's hostel at VIT? What does the code say?",
+    "ground_truth": "No. Gaining entry into the women's hostel by male students (and vice versa) is explicitly listed as a misconduct under the VIT Students' Code of Conduct."
+  },
+  {
+    "id": "scc_007",
+    "source": "student_code_of_conduct.pdf",
+    "question": "What is the maximum duration for an enquiry committee to submit its report at VIT?",
+    "ground_truth": "The Enquiry Officer or Committee shall submit its Report within 90 days of commencement of proceedings to the Registrar of the Institute."
+  },
+  {
+    "id": "scc_008",
+    "source": "student_code_of_conduct.pdf",
+    "question": "What is the period of ineligibility to reapply for admission to VIT as a disciplinary punishment?",
+    "ground_truth": "A student can be made ineligible to reapply for admission to the Institute for a period of three years as a disciplinary punishment."
+  },
+  {
+    "id": "ar_001",
+    "source": "academic_regulations.pdf",
+    "question": "What is the minimum attendance percentage required to be eligible to write exams at VIT?",
+    "ground_truth": "A student is required to maintain a minimum of 75% attendance in each course to be eligible to write examinations. Students who fail to maintain this minimum attendance will be considered debarred from writing the exam."
+  },
+  {
+    "id": "ar_002",
+    "source": "academic_regulations.pdf",
+    "question": "What is the maximum and minimum number of credits a student can register in a regular semester at VIT?",
+    "ground_truth": "A student can register for a maximum of 27 credits and a minimum of 16 credits in a regular semester. The average academic load is 23 credits."
+  },
+  {
+    "id": "ar_003",
+    "source": "academic_regulations.pdf",
+    "question": "What is the CGPA required for a VIT student to be exempt from the minimum attendance requirement?",
+    "ground_truth": "Students with a CGPA of 9.00 and above and with no current backlog courses are exempted from the minimum attendance requirements."
+  },
+  {
+    "id": "ar_004",
+    "source": "academic_regulations.pdf",
+    "question": "What does the grade 'N' mean in VIT's grading system?",
+    "ground_truth": "The grade 'N' indicates a course is not completed. It is sub-categorized as: N1 (student fails to clear one or more components), N2 (student debarred due to lack of attendance), N3 (student absent in the Final Assessment Test), and N4 (student debarred in FAT due to indiscipline or malpractice). N grade carries Zero grade points."
+  },
+  {
+    "id": "ar_005",
+    "source": "academic_regulations.pdf",
+    "question": "What is the passing criteria for the FAT (Final Assessment Test) in a theory course at VIT?",
+    "ground_truth": "A student must secure a minimum of 40% marks in the theory FAT alone to pass a theory course. They must also secure a minimum of 50% marks out of the grand total marks awarded to the course."
+  },
+  {
+    "id": "ar_006",
+    "source": "academic_regulations.pdf",
+    "question": "What is the CGPA required to register for a Post Graduate level course as a VIT undergraduate student?",
+    "ground_truth": "Undergraduate students must have a CGPA of 8.00 or more to be permitted to credit a Post Graduate level course as a University Elective option."
+  },
+  {
+    "id": "ar_007",
+    "source": "academic_regulations.pdf",
+    "question": "What is the credit limit for registering courses during a summer or intersession semester at VIT?",
+    "ground_truth": "During a summer, intersession, or weekend semester, a student can register between 6 and 8 credits, or 2 courses, whichever is less. In special cases, a maximum of 12 credits may be permitted with the approval of the Proctor and School Dean."
+  },
+  {
+    "id": "ar_008",
+    "source": "academic_regulations.pdf",
+    "question": "What is the CGPA equivalent to percentage conversion method at VIT?",
+    "ground_truth": "The percentage equivalent of CGPA is calculated by multiplying the CGPA by 10. For example, a CGPA of 8.75 is considered equivalent to 87.5%."
+  },
+  {
+    "id": "ar_009",
+    "source": "academic_regulations.pdf",
+    "question": "What is the minimum CGPA required to register for an audit course at VIT?",
+    "ground_truth": "A student must have a CGPA equal to or more than 8.0 at the time of Registration to be permitted to register for an audit course."
+  },
+  {
+    "id": "ar_010",
+    "source": "academic_regulations.pdf",
+    "question": "How many credits does an industrial internship carry at VIT?",
+    "ground_truth": "The industrial internship carries 2 credits and is accommodated in the University Core. B.Tech. students can complete this training in a single stretch of four weeks (28 days) or in two stretches of two-week duration."
+  }
+]
