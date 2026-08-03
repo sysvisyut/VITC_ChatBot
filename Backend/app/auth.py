@@ -1,26 +1,24 @@
-import os
+import logging
 from fastapi import Security, HTTPException, status
 from fastapi.security.api_key import APIKeyHeader
-from dotenv import load_dotenv
-load_dotenv()
+from app.config import settings
 
-API_KEY_NAME = "X-API-Key"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+logger = logging.getLogger(__name__)
 
-def get_api_key(api_key_header: str = Security(api_key_header)):
-    expected_api_key = os.getenv("API_KEY")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    expected_api_key = settings.api_key
     if not expected_api_key:
-        # If no key is set in .env, we assume auth is disabled (or we could fail safe).
-        # For security, let's fail safe if it's supposed to be secured.
+        logger.error("API_KEY environment variable not set")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server API key not configured"
+            detail="Server configuration error"
         )
-    
-    if api_key_header == expected_api_key:
-        return api_key_header
-    
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Could not validate API key"
-    )
+    if api_key_header != expected_api_key:
+        logger.warning("Attempted access with invalid API key")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Could not validate API key"
+        )
+    return api_key_header

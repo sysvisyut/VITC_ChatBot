@@ -2,9 +2,13 @@ import httpx
 import json
 
 def test_stream_endpoint():
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from app.config import settings
+
     url = "http://localhost:8003/stream/"
     headers = {
-        "X-API-Key": "dev_key_123",
+        "X-API-Key": settings.api_key,
         "Content-Type": "application/json"
     }
     payload = {"query": "What are the hostel rules?"}

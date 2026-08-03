@@ -18,7 +18,18 @@ logger = logging.getLogger(__name__)
 # Rate limiter setup
 from app.limiter import limiter
 
-app = FastAPI(title="VIT Chennai AI Assistant API", version="1.0.0")
+from contextlib import asynccontextmanager
+from app.services.rag_service import RAGService
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up: Initializing RAGService...")
+    app.state.rag_service = RAGService()
+    yield
+    logger.info("Shutting down: Closing RAGService...")
+    app.state.rag_service.close()
+
+app = FastAPI(title="VIT Chennai AI Assistant API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)

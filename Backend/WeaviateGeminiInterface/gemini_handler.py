@@ -8,21 +8,24 @@ logger = logging.getLogger(__name__)
 
 # gemini config
 global GEMINI_MODEL
-def configure_gemini():
+global GEMINI_MODEL_NAME
+
+def configure_gemini(api_key: str, model_name: str):
     """Configures the Gemini API and initializes the model."""
     global GEMINI_MODEL
-    GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL   = os.getenv("GEMINI_MODEL")
-    if not GOOGLE_API_KEY or not GEMINI_MODEL:
-        logger.error("❌ GOOGLE_API_KEY/MODEL SELECTION not found in .env file.")
+    global GEMINI_MODEL_NAME
+    
+    if not api_key or not model_name:
+        logger.error("❌ GEMINI_API_KEY/MODEL SELECTION not provided.")
         return False
     try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-        GEMINI_MODEL = genai.GenerativeModel(GEMINI_MODEL)
+        genai.configure(api_key=api_key)
+        GEMINI_MODEL = genai.GenerativeModel(model_name)
+        GEMINI_MODEL_NAME = model_name
         logger.info("✅ Gemini API configured successfully.")
         return True
     except Exception as e:
-        logger.error(f"❌ Error configuring Gemini API: {e}f")
+        logger.error(f"❌ Error configuring Gemini API: {e}")
         return False
 
 
@@ -30,8 +33,7 @@ def configure_gemini():
 # Query rewriting  (cheap, fast, isolated from the main answer model)
 # ---------------------------------------------------------------------------
 
-# Use the same model family as the main answer model (read from env at call
-# time so we pick up whatever the user has configured).  We create a fresh
+# Use the same model family as the main answer model. We create a fresh
 # GenerativeModel instance so state is fully isolated from GEMINI_MODEL.
 _REWRITE_TIMEOUT_S = 3          # wall-clock seconds before we give up
 
@@ -66,8 +68,9 @@ def rewrite_query(original_query: str) -> Optional[str]:
       - Has a hard wall-clock timeout so it can NEVER block the main pipeline.
     """
     def _call() -> str:
-        # Read model name at call time — picks up configure_gemini()'s env load.
-        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        # Use the configured model name if available, otherwise default
+        global GEMINI_MODEL_NAME
+        model_name = GEMINI_MODEL_NAME if 'GEMINI_MODEL_NAME' in globals() else "models/gemini-2.5-flash"
         model  = genai.GenerativeModel(model_name)
         prompt = _REWRITE_PROMPT.format(query=original_query)
         resp   = model.generate_content(

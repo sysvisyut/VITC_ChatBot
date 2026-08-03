@@ -139,7 +139,7 @@ def configure_ragas_llm():
 
 
 # ── Pipeline phase: run all questions, save cache ─────────────────────────────
-def run_pipeline_phase(golden: list, score_only: bool) -> list:
+def run_pipeline_phase(golden: list, score_only: bool, weaviate_url: str, weaviate_api_key: str) -> list:
     """
     Runs the retrieval+generation step for all golden questions.
     If --score-only is set, loads from cache instead.
@@ -154,7 +154,7 @@ def run_pipeline_phase(golden: list, score_only: bool) -> list:
     if score_only:
         logger.warning("--score-only requested but no cache found. Running pipeline anyway.")
 
-    client = connect_to_weaviate()
+    client = connect_to_weaviate(url=weaviate_url, api_key=weaviate_api_key)
     if not client:
         logger.error("Failed to connect to Weaviate. Is the cluster running?")
         sys.exit(1)
@@ -274,18 +274,27 @@ def main():
 
     logger.info("=== VITC Chatbot RAG Evaluation Harness ===")
 
-    if not configure_gemini():
+    # 1. Configure Gemini for RAG pipeline
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    gemini_model = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    if not configure_gemini(api_key=gemini_api_key, model_name=gemini_model):
         logger.error("Failed to configure Gemini. Check GEMINI_API_KEY in Backend/.env")
         sys.exit(1)
 
+    # 2. Configure RAGAS LLM
     configure_ragas_llm()
+
+    # 3. Connect to Weaviate
+    weaviate_url = os.getenv("WEAVIATE_URL")
+    weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
+    client = connect_to_weaviate(url=weaviate_url, api_key=weaviate_api_key)
 
     with open(GOLDEN_SET_PATH) as f:
         golden = json.load(f)
     logger.info(f"Loaded {len(golden)} golden Q&A pairs.")
 
     # Phase 1: pipeline
-    rows = run_pipeline_phase(golden, score_only=args.score_only)
+    rows = run_pipeline_phase(golden, score_only=args.score_only, weaviate_url=weaviate_url, weaviate_api_key=weaviate_api_key)
     answered = sum(1 for r in rows if r["answer"].strip())
     logger.info(f"Pipeline complete: {answered}/{len(rows)} questions have non-empty answers.")
 

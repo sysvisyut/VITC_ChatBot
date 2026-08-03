@@ -41,27 +41,29 @@ def _get_cross_encoder():
 # Connection
 # ---------------------------------------------------------------------------
 
-def connect_to_weaviate():
-    """Connects to Weaviate Cloud and returns the client object."""
+def connect_to_weaviate(url: str, api_key: str):
+    """
+    Connects to the Weaviate Cloud instance using the provided credentials.
+    """
+    if not url or not api_key:
+        logger.error("❌ Weaviate URL or API KEY not provided.")
+        return None
+
     try:
-        WEAVIATE_URL = os.getenv("WEAVIATE_URL")
-        WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
-        if not WEAVIATE_URL or not WEAVIATE_API_KEY:
-            logger.error("❌ WEAVIATE_URL / WEAVIATE_API_KEY not set in environment.")
-            return None
-        logger.info("Connecting to Weaviate Cloud...")
+        # Initialize the Weaviate client using the official v4 pattern
         client = weaviate.connect_to_weaviate_cloud(
-            cluster_url=WEAVIATE_URL,
-            auth_credentials=Auth.api_key(WEAVIATE_API_KEY),
-            skip_init_checks=True,  # gRPC health-check DNS issues on some networks
+            cluster_url=url,
+            auth_credentials=Auth.api_key(api_key)
         )
-        if not client.is_ready():
-            logger.error("❌ Could not connect to Weaviate. Check your credentials.")
+        # Note: In Weaviate v4, client.is_connected() is available directly
+        if client.is_connected():
+            logger.info("✅ Connected to Weaviate Cloud successfully!")
+            return client
+        else:
+            logger.error("❌ Failed to connect to Weaviate Cloud (client not connected).")
             return None
-        logger.info("✅ Weaviate connection successful.")
-        return client
     except Exception as e:
-        logger.error(f"❌ Weaviate connection error: {e}")
+        logger.error(f"❌ Error connecting to Weaviate: {e}")
         return None
 
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, File, UploadFile, Form, HTTPException, Re
 from ..import schemas, database
 from typing import Optional
 import logging
-from app.utils.rag_adaptor import query_rag
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,13 @@ router = APIRouter(
 
 from app.limiter import limiter
 
+from app.services.rag_service import RAGService, get_rag_service
+
 @router.post("/", response_model=schemas.RetrieveResponse)
 @limiter.limit("10/minute")
-def retrieve(req: schemas.RetrieveRequest, request: Request):
+def retrieve(req: schemas.RetrieveRequest, request: Request, rag_service: RAGService = Depends(get_rag_service)):
     try:
-        result = query_rag(req.query)
+        result = rag_service.query(req.query)
         return schemas.RetrieveResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
