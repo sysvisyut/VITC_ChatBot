@@ -12,5 +12,9 @@ pytest
 httpx
 # --- RAG ---
 langchain-text-splitters
+# CPU-only torch (avoids downloading 900 MB of CUDA libs in Docker)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 sentence-transformers
 slowapi
+pydantic-settings

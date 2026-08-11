@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # Gemini
     gemini_api_key: str
-    gemini_model: str = "models/gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
     
     # Weaviate
     weaviate_url: str
@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     
     # Constants
     collection_name: str = "VIT_docs"
+    # Can be overridden by PDF_DIRECTORY env var (e.g. /app/data inside Docker)
     pdf_directory: str = str(BACKEND_DIR / "data")
     
     class Config:

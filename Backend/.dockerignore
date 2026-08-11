@@ -1,0 +1,14 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.env
+*.egg-info/
+dist/
+build/
+.DS_Store
+.git/
+migrate_logs.py

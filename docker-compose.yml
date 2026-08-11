@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# VITC Chatbot — docker-compose.yml
+#
+# Usage:
+#   docker compose up --build          # first run / after code changes
+#   docker compose up                  # subsequent runs (uses cached images)
+#   docker compose down                # stop and remove containers
+#   docker compose logs -f backend     # stream backend logs
+#
+# Secrets:
+#   All sensitive values are read from Backend/.env — see Backend/.env.example
+#   for the required keys. Never hardcode secrets in this file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend (FastAPI + RAG pipeline) ──────────────────────────────────────
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    image: vitc-chatbot-backend:latest
+    container_name: vitc-backend
+
+    # Load all backend secrets from the .env file — no hardcoding
+    env_file:
+      - ./Backend/.env
+
+    # Override / supplement specific env vars for the containerised environment
+    environment:
+      # Ensure uvicorn binds to all interfaces inside container
+      HOST: "0.0.0.0"
+      PORT: "8000"
+
+    # Persist PDF data directory — ingestion state survives restarts
+    volumes:
+      - ./Backend/data:/app/data
+
+    ports:
+      - "8000:8000"          # expose directly for local dev / API testing
+
+    # Simple HTTP health check against the root endpoint
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s      # give the RAG service time to initialise
+
+    restart: unless-stopped
+
+  # ── Frontend (React/Vite → nginx) ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        # The browser talks to nginx at /api/; nginx proxies to backend:8000
+        VITE_API_URL: /api
+        VITE_API_KEY: dev_key_123
+    image: vitc-chatbot-frontend:latest
+    container_name: vitc-frontend
+
+    ports:
+      - "80:80"              # App available at http://localhost
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    restart: unless-stopped
