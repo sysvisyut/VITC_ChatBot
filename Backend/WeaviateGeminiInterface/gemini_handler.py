@@ -70,7 +70,7 @@ def rewrite_query(original_query: str) -> Optional[str]:
     def _call() -> str:
         # Use the configured model name if available, otherwise default
         global GEMINI_MODEL_NAME
-        model_name = GEMINI_MODEL_NAME if 'GEMINI_MODEL_NAME' in globals() else "models/gemini-2.5-flash"
+        model_name = GEMINI_MODEL_NAME if 'GEMINI_MODEL_NAME' in globals() else "gemini-3.5-flash"
         model  = genai.GenerativeModel(model_name)
         prompt = _REWRITE_PROMPT.format(query=original_query)
         resp   = model.generate_content(

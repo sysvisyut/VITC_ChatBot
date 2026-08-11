@@ -245,10 +245,13 @@ def run_ragas_phase(rows: list) -> dict:
         "ground_truth": ground_truths,
     })
 
+    from ragas.run_config import RunConfig
     logger.info("Running RAGAS evaluation (may take a few minutes)...")
     eval_result = evaluate(
         ragas_ds,
         metrics=[faithfulness, answer_relevancy, context_recall],
+        run_config=RunConfig(max_workers=1, timeout=60, max_retries=15),
+        raise_exceptions=False,
     )
 
     score_df = eval_result.to_pandas()
@@ -276,7 +279,7 @@ def main():
 
     # 1. Configure Gemini for RAG pipeline
     gemini_api_key = os.getenv("GEMINI_API_KEY")
-    gemini_model = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     if not configure_gemini(api_key=gemini_api_key, model_name=gemini_model):
         logger.error("Failed to configure Gemini. Check GEMINI_API_KEY in Backend/.env")
         sys.exit(1)
