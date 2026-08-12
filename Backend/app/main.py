@@ -2,11 +2,12 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .routers import retrieve, stream
+from .routers import admin, retrieve, stream
 
 # Centralized logging configuration
 logging.basicConfig(
@@ -36,6 +37,9 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+# Prometheus metrics — exposes /metrics endpoint (no auth, standard Prometheus scrape)
+Instrumentator().instrument(app).expose(app)
+
 # Enable CORS for frontend connection
 app.add_middleware(
     CORSMiddleware,
@@ -60,3 +64,4 @@ def test_server():
 
 app.include_router(retrieve.router)
 app.include_router(stream.router)
+app.include_router(admin.router)

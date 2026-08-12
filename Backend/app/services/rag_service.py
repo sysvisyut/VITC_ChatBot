@@ -1,7 +1,9 @@
 import collections
 import json
 import logging
+import time
 
+import app.metrics_store as metrics_store
 from app.config import settings
 from fastapi import Request
 from WeaviateGeminiInterface.gemini_handler import (
@@ -140,25 +142,56 @@ class RAGService:
             return {"answer": "Service unavailable due to internal initialization error.", "sources": []}
 
         # --- Cache Check ---
+        _t_total_start = time.perf_counter()
         cached_result = self._check_cache(user_query)
         if cached_result:
+            metrics_store.record(
+                query=user_query,
+                cache_hit=True,
+                retrieval_ms=None,
+                generation_ms=None,
+                total_ms=(time.perf_counter() - _t_total_start) * 1000,
+                chunks_retrieved=0,
+                answer_length=len(cached_result.get("answer", "")),
+                endpoint="/retrieve/",
+            )
             return cached_result
 
         logger.info(f"[CACHE MISS] Query: '{user_query[:50]}...'")
 
         # --- Normal Pipeline ---
+        _t0 = time.perf_counter()
+
         # Query rewriting
         rewritten = rewrite_query(user_query)
         retrieval_query = rewritten if (rewritten and rewritten.strip() != user_query.strip()) else user_query
 
-        # Retrieve chunks
+        # Retrieve chunks — timed
+        _tr0 = time.perf_counter()
         chunks = retrieve_chunks(self.collection, retrieval_query, limit=3)
+        retrieval_ms = (time.perf_counter() - _tr0) * 1000
 
-        # Generate Answer
+        # Generate Answer — timed
+        _tg0 = time.perf_counter()
         result = generate_answer(chunks, user_query)
+        generation_ms = (time.perf_counter() - _tg0) * 1000
+
+        total_ms = (time.perf_counter() - _t0) * 1000
 
         # Format the result correctly
         final_res = result if isinstance(result, dict) else {"answer": result, "sources": []}
+
+        # --- Metrics ---
+        metrics_store.record(
+            query=user_query,
+            cache_hit=False,
+            retrieval_ms=retrieval_ms,
+            generation_ms=generation_ms,
+            total_ms=total_ms,
+            chunks_retrieved=len(chunks),
+            answer_length=len(final_res.get("answer", "")),
+            endpoint="/retrieve/",
+        )
 
         # --- Cache Save ---
         self._save_cache(user_query, final_res.get("answer", ""), final_res.get("sources", []))
@@ -175,11 +208,22 @@ class RAGService:
             return
 
         # --- Cache Check ---
+        _t_stream_start = time.perf_counter()
         cached_result = self._check_cache(user_query)
         if cached_result:
             # Yield cached output in SSE format instantly
             answer = cached_result["answer"]
             sources = cached_result["sources"]
+            metrics_store.record(
+                query=user_query,
+                cache_hit=True,
+                retrieval_ms=None,
+                generation_ms=None,
+                total_ms=(time.perf_counter() - _t_stream_start) * 1000,
+                chunks_retrieved=0,
+                answer_length=len(answer),
+                endpoint="/stream/",
+            )
             # To simulate streaming, just send the whole chunk at once (or chunk it, but once is fine)
             yield f'data: {json.dumps({"type": "text", "text": answer})}\n\n'
             yield f'data: {json.dumps({"type": "metadata", "sources": sources, "confidence": "high (cached)"})}\n\n'
@@ -192,14 +236,17 @@ class RAGService:
         rewritten = rewrite_query(user_query)
         retrieval_query = rewritten if (rewritten and rewritten.strip() != user_query.strip()) else user_query
 
-        # Retrieve chunks
+        # Retrieve chunks — timed
+        _tr0 = time.perf_counter()
         chunks = retrieve_chunks(self.collection, retrieval_query, limit=3)
+        retrieval_ms = (time.perf_counter() - _tr0) * 1000
 
-        # Stream Generation
+        # Stream Generation — timed across all chunks
         stream_gen = generate_answer_stream(chunks, user_query)
 
         accumulated_text = []
         final_sources = []
+        _tg0 = time.perf_counter()
 
         for sse_chunk in stream_gen:
             yield sse_chunk
@@ -216,8 +263,23 @@ class RAGService:
             except Exception:
                 pass
 
-        # --- Cache Save ---
+        generation_ms = (time.perf_counter() - _tg0) * 1000
+        total_ms = (time.perf_counter() - _t_stream_start) * 1000
         full_answer = "".join(accumulated_text)
+
+        # --- Metrics ---
+        metrics_store.record(
+            query=user_query,
+            cache_hit=False,
+            retrieval_ms=retrieval_ms,
+            generation_ms=generation_ms,
+            total_ms=total_ms,
+            chunks_retrieved=len(chunks),
+            answer_length=len(full_answer),
+            endpoint="/stream/",
+        )
+
+        # --- Cache Save ---
         self._save_cache(user_query, full_answer, final_sources)
 
     def close(self):

@@ -17,4 +17,5 @@ langchain-text-splitters
 torch
 sentence-transformers
 slowapi
+prometheus_fastapi_instrumentator
 pydantic-settings
