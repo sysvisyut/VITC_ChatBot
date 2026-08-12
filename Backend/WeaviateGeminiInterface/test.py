@@ -1,10 +1,11 @@
 import os
+
 import weaviate
-from weaviate.classes.init import Auth
-from weaviate.classes.config import Configure, Property, DataType
-from weaviate.exceptions import WeaviateQueryError, WeaviateConnectionError
-from weaviate.classes.query import Filter
 from dotenv import load_dotenv
+from weaviate.classes.config import Configure, DataType, Property
+from weaviate.classes.init import Auth
+from weaviate.classes.query import Filter
+from weaviate.exceptions import WeaviateConnectionError, WeaviateQueryError
 
 load_dotenv()
 
@@ -37,7 +38,7 @@ def connect_to_weaviate():
 #collection creation
 def get_or_create_collection(client, collection_name="VIT_docs", fresh_start=False):
     """
-    Gets or creates a Weaviate collection. 
+    Gets or creates a Weaviate collection.
     If fresh_start is True, it will delete the collection if it already exists.
     """
     if fresh_start and client.collections.exists(collection_name):
@@ -61,8 +62,8 @@ def get_or_create_collection(client, collection_name="VIT_docs", fresh_start=Fal
             return None
     else:
         print(f"Collection '{collection_name}' already exists.")
-    
-    
+
+
     return client.collections.get(collection_name)
 
 #ingesting data into the collection
@@ -71,7 +72,7 @@ def ingest_data(collection, data_objects):
     if not data_objects:
         print("Warning: No data provided for ingestion.")
         return
-    
+
     print(f"Ingesting {len(data_objects)} objects into '{collection.name}'...")
     try:
         with collection.batch.dynamic() as batch:
@@ -91,15 +92,15 @@ def retrieve_chunks(collection, query_text, limit=3):
             query=query_text,
             limit=limit
         )
-        
+
         retrieved_chunks = []
         if response.objects:
              retrieved_chunks = [obj.properties['text_chunk'] for obj in response.objects]
-        
+
         if not retrieved_chunks:
             print("No relevant documents found in Weaviate for your query.")
             return []
-        
+
         print(f"✅ Retrieved {len(retrieved_chunks)} document(s):")
         for i, chunk in enumerate(retrieved_chunks):
             print(f"  - Chunk {i+1}: {chunk[:100]}...") # Print a snippet
@@ -108,7 +109,7 @@ def retrieve_chunks(collection, query_text, limit=3):
     except WeaviateQueryError as e:
         print(f"❌ Weaviate query error: {e}")
         return []
-    
+
 #deletion function to replace outdated documents whenever required
 def delete_chunks_from_source(collection, source_filename):
     """Deletes all chunks associated with a specific source file from the collection."""
@@ -122,7 +123,7 @@ def delete_chunks_from_source(collection, source_filename):
         response = collection.data.delete_many(
             where=Filter.by_property("source_file").equal(source_filename)
         )
-        
+
         # The response object contains information about the operation
         print(f"✅ Deletion successful. Matched {response.matched_count} and deleted {response.successful_count} object(s).")
         if response.failed_count > 0:

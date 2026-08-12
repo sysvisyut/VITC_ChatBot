@@ -1,19 +1,25 @@
-import logging
-import json
 import collections
-from fastapi import Request
+import json
+import logging
+
 from app.config import settings
-from WeaviateGeminiInterface.gemini_handler import configure_gemini, generate_answer, generate_answer_stream, rewrite_query
+from fastapi import Request
+from WeaviateGeminiInterface.gemini_handler import (
+    configure_gemini,
+    generate_answer,
+    generate_answer_stream,
+    rewrite_query,
+)
+from WeaviateGeminiInterface.pdf_processor import process_single_pdf
 from WeaviateGeminiInterface.weaviate_handler import (
     connect_to_weaviate,
+    get_or_create_cache_collection,
     get_or_create_collection,
     ingest_incrementally,
     retrieve_chunks,
-    get_or_create_cache_collection,
     semantic_cache_search,
-    semantic_cache_store
+    semantic_cache_store,
 )
-from WeaviateGeminiInterface.pdf_processor import process_single_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +32,11 @@ class RAGService:
         self.weaviate_client = None
         self.collection = None
         self.cache_collection = None
-        
+
         # Exact match In-Memory LRU Cache (max 200 items)
         self._lru_cache = collections.OrderedDict()
         self._lru_capacity = 200
-        
+
         self._initialize()
 
     def _initialize(self):
@@ -41,7 +47,7 @@ class RAGService:
         )
         if not gemini_configured:
             logger.error("Failed to configure Gemini API in RAGService.")
-            
+
         # Connect to Weaviate
         self.weaviate_client = connect_to_weaviate(
             url=settings.weaviate_url,
@@ -54,16 +60,16 @@ class RAGService:
         # Setup Collection & Run Ingestion
         try:
             self.collection = get_or_create_collection(
-                self.weaviate_client, 
-                settings.collection_name, 
+                self.weaviate_client,
+                settings.collection_name,
                 fresh_start=False
             )
-            
+
             self.cache_collection = get_or_create_cache_collection(
                 self.weaviate_client,
                 collection_name="VIT_QueryCache"
             )
-            
+
             if self.collection:
                 ingest_incrementally(
                     client=self.weaviate_client,
@@ -86,14 +92,14 @@ class RAGService:
         Returns a dict {"answer": str, "sources": list} if hit, else None.
         """
         norm_q = self._normalize_query(user_query)
-        
+
         # 1. Exact LRU Cache check
         if norm_q in self._lru_cache:
             logger.info(f"[CACHE HIT - EXACT] Query: '{user_query[:50]}...'")
             # Move to end (most recently used)
             self._lru_cache.move_to_end(norm_q)
             return self._lru_cache[norm_q]
-            
+
         # 2. Semantic Cache check
         if self.cache_collection:
             res = semantic_cache_search(self.cache_collection, user_query, threshold=0.95)
@@ -101,7 +107,7 @@ class RAGService:
                 # Also populate local LRU so next time it's instant
                 self._save_to_lru(norm_q, res["answer"], res["sources"])
                 return res
-                
+
         return None
 
     def _save_to_lru(self, norm_q: str, answer: str, sources: list):
@@ -118,10 +124,10 @@ class RAGService:
         # Skip caching empty or fallback answers
         if not answer or answer.strip() == "" or "could not find any relevant information" in answer:
             return
-            
+
         norm_q = self._normalize_query(user_query)
         self._save_to_lru(norm_q, answer, sources)
-        
+
         if self.cache_collection:
             semantic_cache_store(self.cache_collection, user_query, answer, sources)
 
@@ -137,26 +143,26 @@ class RAGService:
         cached_result = self._check_cache(user_query)
         if cached_result:
             return cached_result
-            
+
         logger.info(f"[CACHE MISS] Query: '{user_query[:50]}...'")
 
         # --- Normal Pipeline ---
         # Query rewriting
         rewritten = rewrite_query(user_query)
         retrieval_query = rewritten if (rewritten and rewritten.strip() != user_query.strip()) else user_query
-        
+
         # Retrieve chunks
         chunks = retrieve_chunks(self.collection, retrieval_query, limit=3)
-        
+
         # Generate Answer
         result = generate_answer(chunks, user_query)
-        
+
         # Format the result correctly
         final_res = result if isinstance(result, dict) else {"answer": result, "sources": []}
-        
+
         # --- Cache Save ---
         self._save_cache(user_query, final_res.get("answer", ""), final_res.get("sources", []))
-        
+
         return final_res
 
     def query_stream(self, user_query: str):
@@ -165,7 +171,7 @@ class RAGService:
         """
         if not self.weaviate_client or not self.collection:
             logger.error("RAGService is not fully initialized. Cannot process stream query.")
-            yield f'data: {{"type": "error", "error": "Service unavailable"}}\n\n'
+            yield 'data: {"type": "error", "error": "Service unavailable"}\n\n'
             return
 
         # --- Cache Check ---
@@ -185,19 +191,19 @@ class RAGService:
         # Query rewriting
         rewritten = rewrite_query(user_query)
         retrieval_query = rewritten if (rewritten and rewritten.strip() != user_query.strip()) else user_query
-        
+
         # Retrieve chunks
         chunks = retrieve_chunks(self.collection, retrieval_query, limit=3)
-        
+
         # Stream Generation
         stream_gen = generate_answer_stream(chunks, user_query)
-        
+
         accumulated_text = []
         final_sources = []
-        
+
         for sse_chunk in stream_gen:
             yield sse_chunk
-            
+
             # Parse the SSE chunk to accumulate the final answer for caching
             try:
                 # sse_chunk looks like: data: {"type": "text", "text": "..."}\n\n

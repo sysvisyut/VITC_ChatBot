@@ -1,11 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from .routers import retrieve, user, stream
-import logging
+
+from .routers import retrieve, stream
 
 # Centralized logging configuration
 logging.basicConfig(
@@ -16,10 +17,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Rate limiter setup
-from app.limiter import limiter
-
 from contextlib import asynccontextmanager
+
+from app.limiter import limiter
 from app.services.rag_service import RAGService
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

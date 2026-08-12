@@ -1,10 +1,12 @@
-from fastapi import APIRouter, status, HTTPException, Request, Depends
-from fastapi.responses import StreamingResponse
-from ..import schemas
 import logging
-from app.services.rag_service import RAGService, get_rag_service
+
 from app.auth import get_api_key
 from app.limiter import limiter
+from app.services.rag_service import RAGService, get_rag_service
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+
+from .. import schemas
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ def stream_retrieve(req: schemas.RetrieveRequest, request: Request, rag_service:
             rag_service.query_stream(req.query),
             media_type="text/event-stream"
         )
-    except Exception as e:
+    except Exception:
         logger.exception("RAG streaming request failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

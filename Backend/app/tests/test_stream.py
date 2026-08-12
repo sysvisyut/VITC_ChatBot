@@ -1,8 +1,11 @@
-import httpx
 import json
 
+import httpx
+
+
 def test_stream_endpoint():
-    import sys, os
+    import os
+    import sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     from app.config import settings
 
@@ -12,7 +15,7 @@ def test_stream_endpoint():
         "Content-Type": "application/json"
     }
     payload = {"query": "What are the hostel rules?"}
-    
+
     print("Sending request to /stream/...")
     try:
         with httpx.stream("POST", url, headers=headers, json=payload, timeout=30.0) as response:

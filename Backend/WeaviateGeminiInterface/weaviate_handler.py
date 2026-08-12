@@ -1,17 +1,17 @@
-import os
 import json
+import logging
+import os
+import threading
+from pathlib import Path
+from typing import List
+
 import weaviate
 import weaviate.classes as wvc
-from pathlib import Path
-from typing import List, Callable
+from weaviate.classes.config import Configure, DataType, Property
 from weaviate.classes.init import Auth
-from weaviate.classes.config import Configure, Property, DataType
-from weaviate.exceptions import WeaviateQueryError, WeaviateConnectionError
 from weaviate.classes.query import Filter
+from weaviate.exceptions import WeaviateQueryError
 
-import threading
-import os
-import logging
 logger = logging.getLogger(__name__)
 
 # Fix HuggingFace tokenizers crashing in FastAPI threadpools
@@ -345,7 +345,7 @@ def get_or_create_cache_collection(client, collection_name: str = "VIT_QueryCach
         if client.collections.exists(collection_name):
             logger.info(f"Cache collection '{collection_name}' exists.")
             return client.collections.get(collection_name)
-            
+
         logger.info(f"Creating cache collection '{collection_name}'...")
         collection = client.collections.create(
             name=collection_name,
@@ -379,7 +379,7 @@ def semantic_cache_search(cache_collection, user_query: str, threshold: float = 
             if certainty >= threshold:
                 logger.info(f"[CACHE HIT - SEMANTIC] Found match (certainty {certainty:.4f})")
                 props = best_match.properties
-                
+
                 # Parse sources if it's a valid JSON string
                 sources = []
                 if "sources" in props and props["sources"]:
@@ -387,7 +387,7 @@ def semantic_cache_search(cache_collection, user_query: str, threshold: float = 
                         sources = json.loads(props["sources"])
                     except json.JSONDecodeError:
                         pass
-                
+
                 return {
                     "answer": props.get("answer", ""),
                     "sources": sources
@@ -398,7 +398,7 @@ def semantic_cache_search(cache_collection, user_query: str, threshold: float = 
             logger.info("[CACHE MISS - SEMANTIC] No matches found.")
     except Exception as e:
         logger.warning(f"Semantic cache search error: {e}")
-    
+
     return None
 
 def semantic_cache_store(cache_collection, user_query: str, answer: str, sources: list):

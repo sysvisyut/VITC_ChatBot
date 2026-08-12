@@ -1,8 +1,7 @@
-from pydantic import BaseModel
-from typing import Optional, List, Literal
-
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
+
 
 class RetrieveRequest(BaseModel):
     query: str = Field(..., min_length=3, max_length=500, description="The user's query")

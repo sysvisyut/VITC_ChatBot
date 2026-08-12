@@ -12,16 +12,14 @@ Run with:
     pytest app/tests/test_smoke.py -v
 """
 
-import sys
 import os
-import pytest
+import sys
 
 # Ensure 'Backend/' is on sys.path so 'app' and 'WeaviateGeminiInterface' are importable,
 # regardless of the directory pytest is invoked from.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from fastapi.testclient import TestClient
-
 
 # ---------------------------------------------------------------------------
 # Test 1 — Import sanity
@@ -55,9 +53,9 @@ def test_retrieve_returns_non_empty_answer():
     """
     POST /retrieve/ with a question that has a clear answer in the ingested PDFs.
     """
-    from app.main import app
     from app.config import settings
-    
+    from app.main import app
+
     with TestClient(app, raise_server_exceptions=True) as client:
         payload = {"query": "What is the minimum attendance requirement at VIT Chennai?"}
         headers = {"X-API-Key": settings.api_key}

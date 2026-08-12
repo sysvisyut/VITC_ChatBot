@@ -46,8 +46,10 @@ jobs:
 
       - name: Run ruff on Backend/
         # E/F = pyflakes/pycodestyle errors, W = warnings, I = import order
-        # --exit-zero would suppress failures; we want failures to fail CI.
-        run: ruff check Backend/ --select E,F,W,I --ignore E501
+        # E501: line-too-long — subjective, skip
+        # E402: module-level import not at top — intentional in main.py/routers
+        #        (logging config must run before importing modules that use loggers)
+        run: ruff check Backend/ --select E,F,W,I --ignore E501,E402
 
   # ── Job 2: Smoke Tests ──────────────────────────────────────────────────────
   test:

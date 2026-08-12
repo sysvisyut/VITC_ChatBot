@@ -1,10 +1,10 @@
-import fitz
-import os
-import camelot
-import pandas as pd
-from pathlib import Path
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 import logging
+from pathlib import Path
+
+import camelot
+import fitz
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 logger = logging.getLogger(__name__)
 
 

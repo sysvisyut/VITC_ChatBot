@@ -1,9 +1,11 @@
-import os
-import google.generativeai as genai
-from typing import List, Literal, Optional, Generator
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-import logging
 import json
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from typing import Generator, List, Literal, Optional
+
+import google.generativeai as genai
+
 logger = logging.getLogger(__name__)
 
 # gemini config
@@ -14,7 +16,7 @@ def configure_gemini(api_key: str, model_name: str):
     """Configures the Gemini API and initializes the model."""
     global GEMINI_MODEL
     global GEMINI_MODEL_NAME
-    
+
     if not api_key or not model_name:
         logger.error("❌ GEMINI_API_KEY/MODEL SELECTION not provided.")
         return False
@@ -325,7 +327,7 @@ QUESTION: {sanitized_query.strip()}
             if chunk.text:
                 # SSE format requires data: payload\n\n
                 yield f'data: {json.dumps({"type": "text", "text": chunk.text})}\n\n'
-        
+
         # Finally yield metadata
         yield f'data: {json.dumps({"type": "metadata", "sources": sources, "confidence": confidence})}\n\n'
 
