@@ -1,6 +1,6 @@
 # VIT Chennai AI Assistant Chatbot
 
-[![CI](https://github.com/sysvisyut/VITC_ChatBot_frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/sysvisyut/VITC_ChatBot_frontend/actions/workflows/ci.yml)
+[![CI](https://github.com/sysvisyut/VITC_ChatBot/actions/workflows/ci.yml/badge.svg)](https://github.com/sysvisyut/VITC_ChatBot/actions/workflows/ci.yml)
 
 A Retrieval Augmented Generation (RAG) powered AI chatbot for Vellore Institute of Technology, Chennai. This intelligent assistant helps students and faculty access information about VIT Chennai through natural conversation.
 
